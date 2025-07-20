@@ -145,6 +145,7 @@
 
 ---
 
-**项目启动时间**: 2025年7月21日  
-**预计完成时间**: 2025年10月21日  
-**开发者**: iOS Development Team
+**项目启动时间**: 2025年1月21日  
+**初始版本完成**: 2025年1月21日  
+**开发者**: iOS Development Team  
+**GitHub仓库**: https://github.com/Mclarenlife/7DAYS.git
