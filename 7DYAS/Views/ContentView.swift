@@ -11,7 +11,6 @@ struct ContentView: View {
     @StateObject private var dataManager = DataManager.shared
     @StateObject private var timerService = TimerService()
     @State private var selectedTab: MainTab = .timeline
-    @State private var showingActionSheet = false
     @State private var showingNewIdea = false
     @State private var showingFocusTimer = false
     @State private var showingGlobalSearch = false
@@ -79,7 +78,8 @@ struct ContentView: View {
                 Spacer()
                 FloatingActionBar(
                     onHomeAction: { selectedTab = .timeline },
-                    onActionSheetToggle: { showingActionSheet.toggle() },
+                    onIdeaAction: { showingNewIdea = true },
+                    onFocusAction: { showingFocusTimer = true },
                     onSearchAction: { showingGlobalSearch = true }
                 )
                 .padding(.bottom, 40)
@@ -87,20 +87,6 @@ struct ContentView: View {
         }
         .environmentObject(dataManager)
         .environmentObject(timerService)
-        .actionSheet(isPresented: $showingActionSheet) {
-            ActionSheet(
-                title: Text("选择操作"),
-                buttons: [
-                    .default(Text("新建想法")) {
-                        showingNewIdea = true
-                    },
-                    .default(Text("专注时间")) {
-                        showingFocusTimer = true
-                    },
-                    .cancel(Text("取消"))
-                ]
-            )
-        }
         .sheet(isPresented: $showingNewIdea) {
             NewIdeaView()
         }
@@ -193,7 +179,8 @@ struct TabButton: View {
 // 悬浮操作栏
 struct FloatingActionBar: View {
     let onHomeAction: () -> Void
-    let onActionSheetToggle: () -> Void
+    let onIdeaAction: () -> Void
+    let onFocusAction: () -> Void
     let onSearchAction: () -> Void
     
     var body: some View {
@@ -209,34 +196,44 @@ struct FloatingActionBar: View {
                     .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
             }
             
-            // 中间操作按钮
-            Button(action: onActionSheetToggle) {
-                HStack {
-                    VStack(spacing: 2) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "lightbulb.fill")
-                                .font(.caption)
-                            Text("想法")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                        }
-                        
-                        HStack(spacing: 8) {
-                            Image(systemName: "timer")
-                                .font(.caption)
-                            Text("专注")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                        }
+            // 中间操作按钮组
+            HStack(spacing: 0) {
+                // 想法按钮
+                Button(action: onIdeaAction) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "lightbulb.fill")
+                            .font(.system(size: 16))
+                        Text("想法")
+                            .font(.system(size: 15, weight: .medium))
                     }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.orange)
                 }
-                .foregroundColor(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color.orange)
-                .clipShape(RoundedRectangle(cornerRadius: 25))
-                .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
+                
+                // 分割线
+                Rectangle()
+                    .fill(Color.white.opacity(0.3))
+                    .frame(width: 1)
+                    .padding(.vertical, 8)
+                
+                // 专注按钮  
+                Button(action: onFocusAction) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "timer")
+                            .font(.system(size: 16))
+                        Text("专注")
+                            .font(.system(size: 15, weight: .medium))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.orange)
+                }
             }
+            .frame(width: 140, height: 50)
+            .background(Color.orange)
+            .clipShape(RoundedRectangle(cornerRadius: 25))
+            .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
             
             // 搜索按钮
             Button(action: onSearchAction) {
