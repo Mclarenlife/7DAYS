@@ -798,12 +798,50 @@ struct BottomFocusSheet: View {
                     Spacer()
                     
                     VStack(spacing: 0) {
-                        // 拖拽指示器
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.secondary.opacity(0.5))
-                            .frame(width: 40, height: 4)
-                            .padding(.top, 12)
-                            .padding(.bottom, 20)
+                        // 拖拽指示器 - 只有这个区域可以拖拽窗口
+                        VStack {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color.secondary.opacity(0.5))
+                                .frame(width: 40, height: 4)
+                        }
+                        .frame(height: 40) // 设置拖拽区域高度
+                        .frame(maxWidth: .infinity) // 横向填满以便拖拽
+                        .background(Color.clear) // 透明背景扩大触摸区域
+                        .contentShape(Rectangle()) // 确保整个区域都可以响应手势
+                        .simultaneousGesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    // 允许向上拖拽一定距离，向下拖拽无限制
+                                    let translation = value.translation.height
+                                    let newDragOffset: CGFloat
+                                    
+                                    if translation < 0 {
+                                        // 向上拖拽：限制在-50到0之间，并增加阻尼效果
+                                        newDragOffset = max(-50, translation * 0.3)
+                                    } else {
+                                        // 向下拖拽：无限制
+                                        newDragOffset = translation
+                                    }
+                                    
+                                    // 使用throttle避免过度更新
+                                    if abs(newDragOffset - dragOffset) > 0.5 {
+                                        dragOffset = newDragOffset
+                                    }
+                                }
+                                .onEnded { value in
+                                    let translation = value.translation.height
+                                    
+                                    // 只有向下拖拽才考虑关闭
+                                    if translation > 100 {
+                                        dismissSheetWithDrag()
+                                    } else {
+                                        // 恢复到原位置
+                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                            dragOffset = 0
+                                        }
+                                    }
+                                }
+                        )
                         
                         ScrollView {
                             VStack(spacing: 24) {
@@ -842,40 +880,6 @@ struct BottomFocusSheet: View {
                     .offset(y: offset + dragOffset)
                     .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isAnimatingOut) // 模糊动画
                     .animation(.spring(response: 0.3, dampingFraction: 0.8), value: offset) // 只对offset应用动画
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { value in
-                                // 允许向上拖拽一定距离，向下拖拽无限制
-                                let translation = value.translation.height
-                                let newDragOffset: CGFloat
-                                
-                                if translation < 0 {
-                                    // 向上拖拽：限制在-50到0之间，并增加阻尼效果
-                                    newDragOffset = max(-50, translation * 0.3)
-                                } else {
-                                    // 向下拖拽：无限制
-                                    newDragOffset = translation
-                                }
-                                
-                                // 使用throttle避免过度更新
-                                if abs(newDragOffset - dragOffset) > 0.5 {
-                                    dragOffset = newDragOffset
-                                }
-                            }
-                            .onEnded { value in
-                                let translation = value.translation.height
-                                
-                                // 只有向下拖拽才考虑关闭
-                                if translation > 100 {
-                                    dismissSheetWithDrag()
-                                } else {
-                                    // 恢复到原位置
-                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                        dragOffset = 0
-                                    }
-                                }
-                            }
-                    )
                 }
             }
         }
@@ -940,6 +944,20 @@ struct BottomFocusSheet: View {
 // 计时器显示组件
 struct TimerDisplayView: View {
     @EnvironmentObject var timerService: TimerService
+    @State private var showingTimerSettings = false
+    @AppStorage("circleTimeInterval") private var circleTimeInterval: TimeInterval = 1800 // 默认30分钟一圈
+    @AppStorage("showHourFormat") private var showHourFormat = false // 时间格式：true=时:分:秒，false=分:秒
+    
+    // 计算完成的圆圈数
+    private var completedCircles: Int {
+        Int(timerService.elapsedTime / circleTimeInterval)
+    }
+    
+    // 计算当前圆圈的进度
+    private var currentCircleProgress: Double {
+        let remainder = timerService.elapsedTime.truncatingRemainder(dividingBy: circleTimeInterval)
+        return remainder / circleTimeInterval
+    }
     
     var body: some View {
         VStack(spacing: 16) {
@@ -950,7 +968,7 @@ struct TimerDisplayView: View {
                     .frame(width: 200, height: 200)
                 
                 Circle()
-                    .trim(from: 0, to: min(timerService.elapsedTime / 3600, 1.0)) // 假设1小时为完整圆
+                    .trim(from: 0, to: currentCircleProgress)
                     .stroke(
                         LinearGradient(
                             colors: [.orange, .red],
@@ -964,9 +982,15 @@ struct TimerDisplayView: View {
                     .animation(.easeInOut(duration: 0.3), value: timerService.elapsedTime)
                 
                 VStack(spacing: 4) {
-                    Text(formatTime(timerService.elapsedTime))
-                        .font(.system(size: 32, weight: .bold, design: .monospaced))
-                        .foregroundColor(.primary)
+                    // 可点击的计时时间
+                    Button(action: {
+                        showingTimerSettings = true
+                    }) {
+                        Text(formatTime(timerService.elapsedTime))
+                            .font(.system(size: 32, weight: .bold, design: .monospaced))
+                            .foregroundColor(.primary)
+                    }
+                    .buttonStyle(PlainButtonStyle())
                     
                     Text(timerService.sessionState.rawValue)
                         .font(.caption)
@@ -975,16 +999,47 @@ struct TimerDisplayView: View {
             }
             .padding(.top, 20) // 增加顶部边距，避免与拖拽手柄重叠
             
-            // 状态指示
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(timerService.isRunning ? .green : .gray)
-                    .frame(width: 8, height: 8)
+            // 状态指示和圆圈完成标记
+            VStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(timerService.isRunning ? .green : .gray)
+                        .frame(width: 8, height: 8)
+                    
+                    Text(timerService.isRunning ? "专注中" : "已暂停")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 
-                Text(timerService.isRunning ? "专注中" : "已暂停")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                // 圆圈完成标记
+                if completedCircles > 0 {
+                    HStack(spacing: 4) {
+                        Text("完成轮次:")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        
+                        HStack(spacing: 4) {
+                            ForEach(0..<min(completedCircles, 10), id: \.self) { _ in
+                                Circle()
+                                    .fill(.orange)
+                                    .frame(width: 6, height: 6)
+                            }
+                            
+                            if completedCircles > 10 {
+                                Text("+\(completedCircles - 10)")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                    }
+                }
             }
+        }
+        .sheet(isPresented: $showingTimerSettings) {
+            TimerSettingsView(
+                circleTimeInterval: $circleTimeInterval,
+                showHourFormat: $showHourFormat
+            )
         }
     }
     
@@ -993,10 +1048,13 @@ struct TimerDisplayView: View {
         let minutes = Int(timeInterval) % 3600 / 60
         let seconds = Int(timeInterval) % 60
         
-        if hours > 0 {
+        if showHourFormat && hours > 0 {
             return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        } else if showHourFormat {
+            return String(format: "0:%02d:%02d", minutes, seconds)
         } else {
-            return String(format: "%02d:%02d", minutes, seconds)
+            let totalMinutes = Int(timeInterval) / 60
+            return String(format: "%02d:%02d", totalMinutes, seconds)
         }
     }
 }
@@ -1370,6 +1428,7 @@ struct EventInputField: View {
 // 底部计时条组件
 struct BottomTimerBar: View {
     @EnvironmentObject var timerService: TimerService
+    @AppStorage("showHourFormat") private var showHourFormat = false // 读取时间格式设置
     let onTap: () -> Void
     let onDismiss: () -> Void
     
@@ -1444,10 +1503,142 @@ struct BottomTimerBar: View {
         let minutes = Int(timeInterval) % 3600 / 60
         let seconds = Int(timeInterval) % 60
         
-        if hours > 0 {
+        if showHourFormat && hours > 0 {
             return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        } else if showHourFormat {
+            return String(format: "0:%02d:%02d", minutes, seconds)
         } else {
-            return String(format: "%02d:%02d", minutes, seconds)
+            let totalMinutes = Int(timeInterval) / 60
+            return String(format: "%02d:%02d", totalMinutes, seconds)
+        }
+    }
+}
+
+// 计时器设置视图
+struct TimerSettingsView: View {
+    @Binding var circleTimeInterval: TimeInterval
+    @Binding var showHourFormat: Bool
+    @Environment(\.dismiss) private var dismiss
+    @State private var showingCustomInput = false
+    @State private var customMinutes = ""
+    
+    // 预设的圆圈时间选项（分钟）
+    private let timeOptions: [TimeInterval] = [
+        15 * 60,    // 15分钟
+        25 * 60,    // 25分钟
+        30 * 60,    // 30分钟
+        45 * 60,    // 45分钟
+        60 * 60,    // 1小时
+        90 * 60     // 1.5小时
+    ]
+    
+    // 检查当前时间是否为预设选项
+    private var isCustomTime: Bool {
+        !timeOptions.contains(circleTimeInterval)
+    }
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("圆形进度条设置") {
+                    Text("每一圈完成时间")
+                        .font(.headline)
+                    
+                    ForEach(timeOptions, id: \.self) { timeOption in
+                        HStack {
+                            Text(formatTimeOption(timeOption))
+                            Spacer()
+                            if circleTimeInterval == timeOption {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            circleTimeInterval = timeOption
+                        }
+                    }
+                    
+                    // 自定义时间
+                    HStack {
+                        Text("自定义")
+                        Spacer()
+                        if isCustomTime {
+                            Text(formatTimeOption(circleTimeInterval))
+                                .foregroundColor(.blue)
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.blue)
+                        }
+                        Button("设置") {
+                            customMinutes = String(Int(circleTimeInterval) / 60)
+                            showingCustomInput = true
+                        }
+                    }
+                }
+                
+                Section("显示格式") {
+                    Toggle("显示小时格式", isOn: $showHourFormat)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("格式说明:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        HStack {
+                            Text("关闭:")
+                                .font(.caption)
+                            Text("MM:SS (如 65:30)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        HStack {
+                            Text("开启:")
+                                .font(.caption)
+                            Text("H:MM:SS (如 1:05:30)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("计时器设置")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("完成") {
+                        dismiss()
+                    }
+                }
+            }
+            .alert("自定义时间", isPresented: $showingCustomInput) {
+                TextField("分钟数", text: $customMinutes)
+                    .keyboardType(.numberPad)
+                
+                Button("确定") {
+                    if let minutes = Int(customMinutes), minutes > 0 && minutes <= 480 { // 限制在8小时内
+                        circleTimeInterval = TimeInterval(minutes * 60)
+                    }
+                }
+                
+                Button("取消", role: .cancel) { }
+            } message: {
+                Text("请输入每一圈的时间（1-480分钟）")
+            }
+        }
+    }
+    
+    private func formatTimeOption(_ timeInterval: TimeInterval) -> String {
+        let minutes = Int(timeInterval) / 60
+        let hours = minutes / 60
+        let remainingMinutes = minutes % 60
+        
+        if hours > 0 && remainingMinutes > 0 {
+            return "\(hours)小时\(remainingMinutes)分钟"
+        } else if hours > 0 {
+            return "\(hours)小时"
+        } else {
+            return "\(minutes)分钟"
         }
     }
 }
