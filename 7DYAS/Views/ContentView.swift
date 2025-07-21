@@ -71,10 +71,6 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            // 背景
-            Color(.systemGroupedBackground)
-                .ignoresSafeArea()
-            
             VStack(spacing: 0) {
                 // 固定样式的顶部标签栏
                 TopTabBar(selectedTab: $selectedTab, isFloating: false)
@@ -158,7 +154,7 @@ struct ContentView: View {
                     )
                     .environmentObject(timerService)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 10)
                 }
                 
                 FloatingActionBar(
@@ -167,9 +163,10 @@ struct ContentView: View {
                     onFocusAction: { showingFocusTimer = true },
                     onSearchAction: { showingGlobalSearch = true }
                 )
-                .padding(.bottom, 40)
+                .padding(.bottom, 30)
             }
         }
+        .ignoresSafeArea(.container, edges: .bottom)
         .environmentObject(dataManager)
         .environmentObject(timerService)
         .sheet(isPresented: $showingNewIdea) {
@@ -530,25 +527,38 @@ struct PlanningFloatingDateBar: View {
                 
                 Spacer()
                 
-                // 视图类型选择器
-                HStack(spacing: 8) {
+                // 视图类型选择器 - 改为下拉菜单
+                Menu {
                     ForEach(PlanningView.PlanningViewType.allCases, id: \.self) { type in
                         Button(action: { 
                             selectedViewType = type
                         }) {
-                            Text(type.rawValue)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(selectedViewType == type ? .white : .secondary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(
-                                    Rectangle()
-                                        .fill(selectedViewType == type ? .blue : .clear)
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            HStack {
+                                Text(type.rawValue)
+                                if selectedViewType == type {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
                         }
                     }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(selectedViewType.rawValue)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.blue)
+                        
+                        Image(systemName: "chevron.down")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Rectangle()
+                            .fill(.blue.opacity(0.1))
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
             .padding(.horizontal, 20)
@@ -560,20 +570,16 @@ struct PlanningFloatingDateBar: View {
                     HStack(spacing: 0) {
                         ForEach(ContentView.DaySubViewType.allCases, id: \.self) { subView in
                             Button(action: { selectedSubView = subView }) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: subView.icon)
-                                        .font(.caption)
-                                    Text(subView.rawValue)
-                                        .font(.subheadline)
-                                }
-                                .foregroundColor(selectedSubView == subView ? .blue : .secondary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(
-                                    Rectangle()
-                                        .fill(selectedSubView == subView ? .blue.opacity(0.1) : .clear)
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                                )
+                                Text(subView.rawValue)
+                                    .font(.subheadline)
+                                    .foregroundColor(selectedSubView == subView ? .blue : .secondary)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(
+                                        Rectangle()
+                                            .fill(selectedSubView == subView ? .blue.opacity(0.1) : .clear)
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    )
                             }
                         }
                     }
@@ -591,7 +597,7 @@ struct PlanningFloatingDateBar: View {
                 .fill(.ultraThinMaterial)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 16) // 左右留边距
+        .padding(.horizontal, 30) // 左右留边距
         .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 2) // 添加阴影增强悬浮效果
         .onChange(of: selectedViewType) { oldValue, newValue in
             // 监听视图类型变化，自动展开/收起
@@ -673,7 +679,7 @@ struct TimelineFloatingDateBar: View {
                 .fill(.ultraThinMaterial)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 16) // 左右留边距
+        .padding(.horizontal, 30) // 左右留边距
         .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 2) // 添加阴影增强悬浮效果
     }
 }
@@ -1405,7 +1411,7 @@ struct BottomTimerBar: View {
                 .fill(.ultraThinMaterial)
                 .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: -2)
         )
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 30)
         .onTapGesture {
             onTap()
         }

@@ -1,0 +1,21 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build and Run 7DAYS App",
+			"type": "shell",
+			"command": "xcodebuild",
+			"args": [
+				"-project",
+				"7DYAS.xcodeproj",
+				"-scheme",
+				"7DYAS",
+				"-destination",
+				"platform=iOS Simulator,name=iPhone 15 Pro",
+				"build"
+			],
+			"group": "build",
+			"isBackground": false
+		}
+	]
+}
