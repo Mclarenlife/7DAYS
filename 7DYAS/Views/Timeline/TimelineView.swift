@@ -8,25 +8,14 @@
 import SwiftUI
 
 struct TimelineView: View {
+    @Binding var selectedDate: Date
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var timerService: TimerService
-    @State private var selectedDate = Date()
-    @State private var showingDatePicker = false
     
     var body: some View {
-        VStack(spacing: 0) {
-            // 简化的头部
-            TimelineHeader(
-                selectedDate: $selectedDate,
-                showingDatePicker: $showingDatePicker
-            )
-            
-            // 时间线内容
-            TimelineContent(selectedDate: selectedDate)
-        }
-        .sheet(isPresented: $showingDatePicker) {
-            DatePickerSheet(selectedDate: $selectedDate)
-        }
+        // 直接显示时间线内容，日期栏现在在 ContentView 中管理
+        TimelineContent(selectedDate: selectedDate)
+            .padding(.top, 100) // 为悬浮日期栏留出更多空间
     }
 }
 
@@ -41,33 +30,37 @@ struct TimelineHeader: View {
     }
     
     var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                // 日期选择按钮
-                Button(action: { showingDatePicker = true }) {
-                    HStack {
-                        Text(dateFormatter.string(from: selectedDate))
-                            .font(.headline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.primary)
-                        
-                        Image(systemName: "calendar")
-                            .font(.subheadline)
-                            .foregroundColor(.blue)
-                    }
+        // 悬浮透明玻璃样式的日期栏
+        HStack {
+            // 日期选择按钮
+            Button(action: { showingDatePicker = true }) {
+                HStack(spacing: 8) {
+                    Text(dateFormatter.string(from: selectedDate))
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                    
+                    Image(systemName: "calendar")
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
                 }
-                
-                Spacer()
-                
-                // 今日专注时间统计
-                TodayFocusStats()
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
             
-            Divider()
+            Spacer()
+            
+            // 今日专注时间统计
+            TodayFocusStats()
         }
-        .background(Color(.systemBackground))
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(
+            Rectangle()
+                .fill(.ultraThinMaterial)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal, 16) // 左右留边距
+        .padding(.top, 8) // 顶部留边距
+        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 2) // 添加阴影增强悬浮效果
     }
 }
 
@@ -101,8 +94,11 @@ struct TodayFocusStats: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .background(Color.orange.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .background(
+            Rectangle()
+                .fill(.orange.opacity(0.15))
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
     
     private func formatTime(_ timeInterval: TimeInterval) -> String {
@@ -145,25 +141,28 @@ struct TimelineContent: View {
 
 struct EmptyTimelineView: View {
     var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            
-            Image(systemName: "clock.badge.questionmark")
-                .font(.system(size: 60))
-                .foregroundColor(.gray)
-            
-            VStack(spacing: 8) {
-                Text("暂无专注记录")
-                    .font(.headline)
-                    .foregroundColor(.primary)
+        GeometryReader { geometry in
+            VStack(spacing: 20) {
+                Image(systemName: "clock.badge.questionmark")
+                    .font(.system(size: 60))
+                    .foregroundColor(.gray)
                 
-                Text("开始一个专注时间来记录你的效率时光")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+                VStack(spacing: 8) {
+                    Text("暂无专注记录")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    Text("开始一个专注时间来记录你的效率时光")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
             }
-            
-            Spacer()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .position(
+                x: geometry.size.width / 2,
+                y: geometry.size.height / 2 - 50 // 稍微往上偏移，考虑底部按钮
+            )
         }
         .padding()
     }
@@ -290,7 +289,7 @@ struct DatePickerSheet: View {
 }
 
 #Preview {
-    TimelineView()
+    TimelineView(selectedDate: .constant(Date()))
         .environmentObject(DataManager.shared)
         .environmentObject(TimerService())
 }
