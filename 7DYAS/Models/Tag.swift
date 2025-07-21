@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 
 struct Tag: Identifiable, Codable, Hashable {
-    let id = UUID()
+    var id = UUID()
     var name: String
     var color: TagColor
     var createdDate: Date
@@ -67,7 +67,7 @@ struct Tag: Identifiable, Codable, Hashable {
 
 // 临时想法模型
 struct TemporaryIdea: Identifiable, Codable {
-    let id = UUID()
+    var id = UUID()
     var content: String
     var tags: [String]
     var createdDate: Date

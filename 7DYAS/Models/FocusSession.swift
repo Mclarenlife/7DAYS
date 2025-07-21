@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 
 struct FocusSession: Identifiable, Codable {
-    let id = UUID()
+    var id = UUID()
     var title: String
     var startTime: Date
     var endTime: Date

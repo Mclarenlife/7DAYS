@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 
 struct Task: Identifiable, Codable {
-    let id = UUID()
+    var id = UUID()
     var title: String
     var content: String
     var tags: [String]
