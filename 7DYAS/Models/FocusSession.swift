@@ -15,17 +15,21 @@ struct FocusSession: Identifiable, Codable {
     var endTime: Date
     var duration: TimeInterval
     var tags: [String]
+    var relatedEvents: [String] // 关联的事件列表
     var relatedTask: UUID? // 关联的任务ID
     var notes: String
     
     var formattedDuration: String {
         let hours = Int(duration) / 3600
         let minutes = Int(duration) % 3600 / 60
+        let seconds = Int(duration) % 60
         
         if hours > 0 {
             return "\(hours)小时\(minutes)分钟"
-        } else {
+        } else if minutes > 0 {
             return "\(minutes)分钟"
+        } else {
+            return "\(seconds)秒"
         }
     }
     
@@ -47,12 +51,13 @@ struct FocusSession: Identifiable, Codable {
         return formatter.string(from: startTime)
     }
     
-    init(title: String, startTime: Date = Date(), duration: TimeInterval = 0, tags: [String] = [], relatedTask: UUID? = nil, notes: String = "") {
+    init(title: String, startTime: Date = Date(), duration: TimeInterval = 0, tags: [String] = [], relatedEvents: [String] = [], relatedTask: UUID? = nil, notes: String = "") {
         self.title = title
         self.startTime = startTime
         self.duration = duration
         self.endTime = startTime.addingTimeInterval(duration)
         self.tags = tags
+        self.relatedEvents = relatedEvents
         self.relatedTask = relatedTask
         self.notes = notes
     }

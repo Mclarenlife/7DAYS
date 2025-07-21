@@ -1183,6 +1183,7 @@ struct TimerControlButtons: View {
             startTime: timerService.currentSession?.startTime ?? Date(),
             duration: finalDuration,
             tags: selectedTags,
+            relatedEvents: relatedEvents,
             notes: description
         )
         
