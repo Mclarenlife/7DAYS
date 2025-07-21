@@ -841,16 +841,36 @@ struct BottomFocusSheet: View {
                     .scaleEffect(isAnimatingOut ? 0.9 : 1) // 缩放效果
                     .offset(y: offset + dragOffset)
                     .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isAnimatingOut) // 模糊动画
-                    .gesture(
-                        DragGesture()
+                    .animation(.spring(response: 0.3, dampingFraction: 0.8), value: offset) // 只对offset应用动画
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 0)
                             .onChanged { value in
-                                dragOffset = max(0, value.translation.height)
+                                // 允许向上拖拽一定距离，向下拖拽无限制
+                                let translation = value.translation.height
+                                let newDragOffset: CGFloat
+                                
+                                if translation < 0 {
+                                    // 向上拖拽：限制在-50到0之间，并增加阻尼效果
+                                    newDragOffset = max(-50, translation * 0.3)
+                                } else {
+                                    // 向下拖拽：无限制
+                                    newDragOffset = translation
+                                }
+                                
+                                // 使用throttle避免过度更新
+                                if abs(newDragOffset - dragOffset) > 0.5 {
+                                    dragOffset = newDragOffset
+                                }
                             }
                             .onEnded { value in
-                                if value.translation.height > 100 {
+                                let translation = value.translation.height
+                                
+                                // 只有向下拖拽才考虑关闭
+                                if translation > 100 {
                                     dismissSheetWithDrag()
                                 } else {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    // 恢复到原位置
+                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
                                         dragOffset = 0
                                     }
                                 }
@@ -859,7 +879,6 @@ struct BottomFocusSheet: View {
                 }
             }
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isPresented)
         .onChange(of: isPresented) { oldValue, newValue in
             if newValue {
                 showSheet()
@@ -875,12 +894,14 @@ struct BottomFocusSheet: View {
     
     private func showSheet() {
         isAnimatingOut = false // 重置动画状态
+        dragOffset = 0 // 重置拖拽偏移量
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             offset = 0
         }
     }
     
     private func hideSheet() {
+        dragOffset = 0 // 重置拖拽偏移量
         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
             offset = UIScreen.main.bounds.height
         }
@@ -952,6 +973,7 @@ struct TimerDisplayView: View {
                         .foregroundColor(.secondary)
                 }
             }
+            .padding(.top, 20) // 增加顶部边距，避免与拖拽手柄重叠
             
             // 状态指示
             HStack(spacing: 8) {
