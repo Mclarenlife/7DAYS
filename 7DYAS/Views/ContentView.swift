@@ -159,9 +159,12 @@ struct ContentView: View {
         .sheet(isPresented: $showingNewIdea) {
             NewIdeaView()
         }
-        .sheet(isPresented: $showingFocusTimer) {
-            FocusTimerView()
-        }
+        .overlay(
+            // 底部专注弹窗
+            BottomFocusSheet(isPresented: $showingFocusTimer)
+                .environmentObject(dataManager)
+                .environmentObject(timerService)
+        )
         .sheet(isPresented: $showingGlobalSearch) {
             GlobalSearchView()
         }
@@ -728,6 +731,551 @@ struct TimelineDatePickerSheet: View {
                 }
             }
         }
+    }
+}
+
+// 底部专注弹窗组件
+struct BottomFocusSheet: View {
+    @Binding var isPresented: Bool
+    @EnvironmentObject var timerService: TimerService
+    @EnvironmentObject var dataManager: DataManager
+    
+    @State private var sessionTitle = ""
+    @State private var sessionDescription = ""
+    @State private var selectedTags: [String] = []
+    @State private var relatedEvents: [String] = []
+    @State private var offset: CGFloat = UIScreen.main.bounds.height
+    @State private var dragOffset: CGFloat = 0
+    
+    private let minHeight: CGFloat = 500
+    private let maxHeight: CGFloat = UIScreen.main.bounds.height * 0.8
+    
+    var body: some View {
+        ZStack {
+            if isPresented {
+                // 背景遮罩
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        dismissSheet()
+                    }
+                
+                // 弹窗内容
+                VStack(spacing: 0) {
+                    Spacer()
+                    
+                    VStack(spacing: 0) {
+                        // 拖拽指示器
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.secondary.opacity(0.5))
+                            .frame(width: 40, height: 4)
+                            .padding(.top, 12)
+                            .padding(.bottom, 20)
+                        
+                        ScrollView {
+                            VStack(spacing: 24) {
+                                // 计时器部分
+                                TimerDisplayView()
+                                
+                                // 控制按钮
+                                TimerControlButtons(
+                                    title: $sessionTitle,
+                                    selectedTags: $selectedTags,
+                                    description: $sessionDescription,
+                                    relatedEvents: $relatedEvents
+                                )
+                                
+                                // 专注信息输入
+                                FocusInfoInputView(
+                                    title: $sessionTitle,
+                                    description: $sessionDescription,
+                                    selectedTags: $selectedTags,
+                                    relatedEvents: $relatedEvents
+                                )
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 40)
+                        }
+                    }
+                    .frame(maxHeight: maxHeight)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(.ultraThickMaterial)
+                    )
+                    .offset(y: offset + dragOffset)
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                dragOffset = max(0, value.translation.height)
+                            }
+                            .onEnded { value in
+                                if value.translation.height > 100 {
+                                    dismissSheet()
+                                } else {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                        dragOffset = 0
+                                    }
+                                }
+                            }
+                    )
+                }
+            }
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isPresented)
+        .onChange(of: isPresented) { oldValue, newValue in
+            if newValue {
+                showSheet()
+                // 点击专注按钮时自动开始计时
+                if timerService.sessionState == .idle {
+                    startFocusSession()
+                }
+            } else {
+                hideSheet()
+            }
+        }
+    }
+    
+    private func showSheet() {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            offset = 0
+        }
+    }
+    
+    private func hideSheet() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            offset = UIScreen.main.bounds.height
+        }
+    }
+    
+    private func dismissSheet() {
+        isPresented = false
+    }
+    
+    private func startFocusSession() {
+        let title = sessionTitle.isEmpty ? "专注时间" : sessionTitle
+        timerService.startSession(title: title, tags: selectedTags)
+    }
+}
+
+// 计时器显示组件
+struct TimerDisplayView: View {
+    @EnvironmentObject var timerService: TimerService
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            // 计时器圆环
+            ZStack {
+                Circle()
+                    .stroke(Color.gray.opacity(0.3), lineWidth: 8)
+                    .frame(width: 200, height: 200)
+                
+                Circle()
+                    .trim(from: 0, to: min(timerService.elapsedTime / 3600, 1.0)) // 假设1小时为完整圆
+                    .stroke(
+                        LinearGradient(
+                            colors: [.orange, .red],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                    )
+                    .frame(width: 200, height: 200)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeInOut(duration: 0.3), value: timerService.elapsedTime)
+                
+                VStack(spacing: 4) {
+                    Text(formatTime(timerService.elapsedTime))
+                        .font(.system(size: 32, weight: .bold, design: .monospaced))
+                        .foregroundColor(.primary)
+                    
+                    Text(timerService.sessionState.rawValue)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // 状态指示
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(timerService.isRunning ? .green : .gray)
+                    .frame(width: 8, height: 8)
+                
+                Text(timerService.isRunning ? "专注中" : "已暂停")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    private func formatTime(_ timeInterval: TimeInterval) -> String {
+        let hours = Int(timeInterval) / 3600
+        let minutes = Int(timeInterval) % 3600 / 60
+        let seconds = Int(timeInterval) % 60
+        
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            return String(format: "%02d:%02d", minutes, seconds)
+        }
+    }
+}
+
+// 计时器控制按钮
+struct TimerControlButtons: View {
+    @EnvironmentObject var timerService: TimerService
+    @EnvironmentObject var dataManager: DataManager
+    @State private var showingStopAlert = false
+    @State private var stopNotes = ""
+    
+    @Binding var title: String
+    @Binding var selectedTags: [String]
+    @Binding var description: String
+    @Binding var relatedEvents: [String]
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            // 第一行：暂停/继续按钮
+            Button(action: {
+                if timerService.isRunning {
+                    timerService.pauseSession()
+                } else if timerService.sessionState == .paused {
+                    timerService.resumeSession()
+                } else {
+                    // 开始新的会话
+                    let sessionTitle = title.isEmpty ? "专注时间" : title
+                    timerService.startSession(title: sessionTitle, tags: selectedTags)
+                }
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: timerService.isRunning ? "pause.fill" : "play.fill")
+                        .font(.title2)
+                    Text(timerService.isRunning ? "暂停" : 
+                         (timerService.sessionState == .paused ? "继续" : "开始"))
+                        .font(.headline)
+                        .fontWeight(.medium)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(
+                    LinearGradient(
+                        colors: timerService.isRunning ? [.orange, .red] : [.green, .blue],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 25))
+            }
+            
+            // 第二行：重置和保存按钮
+            HStack(spacing: 12) {
+                // 重置按钮
+                Button(action: {
+                    resetTimer()
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.title3)
+                        Text("重置")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(
+                        LinearGradient(
+                            colors: [.gray, .secondary],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
+                }
+                
+                // 保存按钮
+                Button(action: {
+                    saveSession()
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title3)
+                        Text("保存")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
+                }
+                .disabled(timerService.sessionState == .idle || timerService.elapsedTime < 1)
+            }
+        }
+    }
+    
+    // 重置计时器（只重置时间，不保存）
+    private func resetTimer() {
+        timerService.cancelSession()
+    }
+    
+    // 保存专注会话
+    private func saveSession() {
+        guard timerService.sessionState != .idle && timerService.elapsedTime > 0 else { return }
+        
+        // 生成唯一标题
+        let finalTitle = generateUniqueTitle()
+        
+        // 计算总时长
+        let finalDuration = timerService.elapsedTime
+        
+        // 创建专注会话
+        let session = FocusSession(
+            title: finalTitle,
+            startTime: timerService.currentSession?.startTime ?? Date(),
+            duration: finalDuration,
+            tags: selectedTags,
+            notes: description
+        )
+        
+        // 保存到数据管理器
+        dataManager.addFocusSession(session)
+        
+        // 清空输入内容
+        title = ""
+        description = ""
+        selectedTags.removeAll()
+        relatedEvents.removeAll()
+        
+        // 重置计时器状态
+        timerService.cancelSession()
+        
+        // 提供触觉反馈
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
+    }
+    
+    // 生成唯一标题
+    private func generateUniqueTitle() -> String {
+        let baseTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalBaseTitle = baseTitle.isEmpty ? "未命名专注" : baseTitle
+        
+        // 检查现有标题
+        let existingSessions = dataManager.focusSessions
+        let existingTitles = Set(existingSessions.map { $0.title })
+        
+        // 如果标题不存在，直接返回
+        if !existingTitles.contains(finalBaseTitle) {
+            return finalBaseTitle
+        }
+        
+        // 如果标题已存在，添加数字后缀
+        var counter = 2
+        var uniqueTitle = "\(finalBaseTitle)\(counter)"
+        
+        while existingTitles.contains(uniqueTitle) {
+            counter += 1
+            uniqueTitle = "\(finalBaseTitle)\(counter)"
+        }
+        
+        return uniqueTitle
+    }
+}
+
+// 专注信息输入组件
+struct FocusInfoInputView: View {
+    @Binding var title: String
+    @Binding var description: String
+    @Binding var selectedTags: [String]
+    @Binding var relatedEvents: [String]
+    
+    @State private var tagInput = ""
+    @State private var eventInput = ""
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            // 专注标题
+            VStack(alignment: .leading, spacing: 8) {
+                Text("专注标题")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                TextField("今天要专注什么？", text: $title)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .font(.body)
+            }
+            
+            // 描述
+            VStack(alignment: .leading, spacing: 8) {
+                Text("描述")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                TextField("专注的具体内容或目标", text: $description, axis: .vertical)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .lineLimit(3...6)
+                    .font(.body)
+            }
+            
+            // 标签系统 (#)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("标签 #")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                TagInputField(
+                    input: $tagInput,
+                    selectedTags: $selectedTags,
+                    placeholder: "添加标签，如 #工作 #学习"
+                )
+            }
+            
+            // 事件系统 (@)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("关联事件 @")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                EventInputField(
+                    input: $eventInput,
+                    selectedEvents: $relatedEvents,
+                    placeholder: "关联事件，如 @会议 @项目"
+                )
+            }
+        }
+    }
+}
+
+// 标签输入组件
+struct TagInputField: View {
+    @Binding var input: String
+    @Binding var selectedTags: [String]
+    let placeholder: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                TextField(placeholder, text: $input)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .onSubmit {
+                        addTag()
+                    }
+                
+                Button("添加", action: addTag)
+                    .buttonStyle(.bordered)
+                    .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            
+            // 已选择的标签
+            if !selectedTags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(selectedTags, id: \.self) { tag in
+                            HStack(spacing: 4) {
+                                Text("#\(tag)")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                                
+                                Button(action: { removeTag(tag) }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.blue.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+                    .padding(.horizontal, 1)
+                }
+            }
+        }
+    }
+    
+    private func addTag() {
+        let tag = input.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "#", with: "")
+        
+        if !tag.isEmpty && !selectedTags.contains(tag) {
+            selectedTags.append(tag)
+            input = ""
+        }
+    }
+    
+    private func removeTag(_ tag: String) {
+        selectedTags.removeAll { $0 == tag }
+    }
+}
+
+// 事件输入组件
+struct EventInputField: View {
+    @Binding var input: String
+    @Binding var selectedEvents: [String]
+    let placeholder: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                TextField(placeholder, text: $input)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .onSubmit {
+                        addEvent()
+                    }
+                
+                Button("添加", action: addEvent)
+                    .buttonStyle(.bordered)
+                    .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            
+            // 已选择的事件
+            if !selectedEvents.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(selectedEvents, id: \.self) { event in
+                            HStack(spacing: 4) {
+                                Text("@\(event)")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                                
+                                Button(action: { removeEvent(event) }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.green.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+                    .padding(.horizontal, 1)
+                }
+            }
+        }
+    }
+    
+    private func addEvent() {
+        let event = input.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "@", with: "")
+        
+        if !event.isEmpty && !selectedEvents.contains(event) {
+            selectedEvents.append(event)
+            input = ""
+        }
+    }
+    
+    private func removeEvent(_ event: String) {
+        selectedEvents.removeAll { $0 == event }
     }
 }
 

@@ -59,9 +59,9 @@ struct FocusSession: Identifiable, Codable {
 }
 
 // 专注会话状态
-enum FocusSessionState {
-    case idle
-    case running
-    case paused
-    case completed
+enum FocusSessionState: String {
+    case idle = "准备中"
+    case running = "专注中"
+    case paused = "已暂停"
+    case completed = "已完成"
 }
