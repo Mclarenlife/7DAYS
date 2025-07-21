@@ -10,6 +10,7 @@ import SwiftUI
 struct PlanningView: View {
     @Binding var selectedDate: Date
     @Binding var selectedViewType: PlanningViewType
+    @Binding var selectedDaySubView: ContentView.DaySubViewType
     @EnvironmentObject var dataManager: DataManager
     @State private var showingNewTask = false
     
@@ -34,7 +35,7 @@ struct PlanningView: View {
         Group {
             switch selectedViewType {
             case .day:
-                DayPlanningView(selectedDate: selectedDate)
+                DayPlanningView(selectedDate: selectedDate, selectedSubView: selectedDaySubView)
             case .week:
                 WeekPlanningView(selectedDate: selectedDate)
             case .month:
@@ -187,59 +188,36 @@ struct DateNavigationView: View {
 // 日视图
 struct DayPlanningView: View {
     let selectedDate: Date
+    let selectedSubView: ContentView.DaySubViewType
     @EnvironmentObject var dataManager: DataManager
-    @State private var selectedTaskType: TaskType = .plan
     
     private var tasksForDate: [Task] {
         dataManager.getTasksForDate(selectedDate)
     }
     
-    var body: some View {
-        VStack(spacing: 0) {
-            // 任务类型选择器
-            TaskTypeSelector(selectedType: $selectedTaskType)
-            
-            // 任务列表
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    ForEach(tasksForDate) { task in
-                        TaskCard(task: task)
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-            }
+    // 将 DaySubViewType 转换为 TaskType
+    private var currentTaskType: TaskType {
+        switch selectedSubView {
+        case .planning:
+            return .plan
+        case .dailyRoutine:
+            return .dailyRoutine
+        case .journal:
+            return .journal
         }
     }
-}
-
-struct TaskTypeSelector: View {
-    @Binding var selectedType: TaskType
     
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(TaskType.allCases, id: \.self) { type in
-                Button(action: { selectedType = type }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: type.icon)
-                            .font(.caption)
-                        Text(type.rawValue)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                    }
-                    .foregroundColor(selectedType == type ? .white : .primary)
-                    .padding(.vertical, 10)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        selectedType == type ? Color.blue : Color.clear
-                    )
+        // 任务列表 - 移除了原有的选择器
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(tasksForDate) { task in
+                    TaskCard(task: task)
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
     }
 }
 
@@ -356,7 +334,8 @@ struct YearPlanningView: View {
 #Preview {
     PlanningView(
         selectedDate: .constant(Date()),
-        selectedViewType: .constant(.day)
+        selectedViewType: .constant(.day),
+        selectedDaySubView: .constant(.planning)
     )
     .environmentObject(DataManager.shared)
 }

@@ -23,6 +23,8 @@ struct ContentView: View {
     @State private var planningSelectedDate = Date()
     @State private var showingPlanningDatePicker = false
     @State private var planningViewType: PlanningView.PlanningViewType = .day
+    @State private var isExpandedDayView = true // 日视图展开状态 - 默认展开
+    @State private var selectedDaySubView: DaySubViewType = .planning // 日视图子功能选择
     
     enum MainTab: Int, CaseIterable {
         case timeline = 0
@@ -52,6 +54,20 @@ struct ContentView: View {
         }
     }
     
+    enum DaySubViewType: String, CaseIterable {
+        case planning = "计划"
+        case dailyRoutine = "每日循环"
+        case journal = "日志"
+        
+        var icon: String {
+            switch self {
+            case .planning: return "list.clipboard"
+            case .dailyRoutine: return "arrow.triangle.2.circlepath"
+            case .journal: return "book.pages"
+            }
+        }
+    }
+    
     var body: some View {
         ZStack {
             // 背景
@@ -75,7 +91,8 @@ struct ContentView: View {
                         
                         PlanningView(
                             selectedDate: $planningSelectedDate,
-                            selectedViewType: $planningViewType
+                            selectedViewType: $planningViewType,
+                            selectedDaySubView: $selectedDaySubView
                         )
                             .tag(MainTab.planning)
                         
@@ -116,7 +133,9 @@ struct ContentView: View {
                     PlanningFloatingDateBar(
                         selectedDate: $planningSelectedDate,
                         selectedViewType: $planningViewType,
-                        showingDatePicker: $showingPlanningDatePicker
+                        showingDatePicker: $showingPlanningDatePicker,
+                        isExpanded: $isExpandedDayView,
+                        selectedSubView: $selectedDaySubView
                     )
                 }
                 
@@ -445,6 +464,8 @@ struct PlanningFloatingDateBar: View {
     @Binding var selectedDate: Date
     @Binding var selectedViewType: PlanningView.PlanningViewType
     @Binding var showingDatePicker: Bool
+    @Binding var isExpanded: Bool
+    @Binding var selectedSubView: ContentView.DaySubViewType
     
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
@@ -462,44 +483,81 @@ struct PlanningFloatingDateBar: View {
     }
     
     var body: some View {
-        HStack {
-            // 日期选择按钮
-            Button(action: { showingDatePicker = true }) {
-                HStack(spacing: 8) {
-                    Text(dateFormatter.string(from: selectedDate))
-                        .font(.headline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primary)
-                    
-                    Image(systemName: "calendar")
-                        .font(.subheadline)
-                        .foregroundColor(.blue)
-                }
-            }
-            
-            Spacer()
-            
-            // 视图类型选择器
-            HStack(spacing: 8) {
-                ForEach(PlanningView.PlanningViewType.allCases, id: \.self) { type in
-                    Button(action: { selectedViewType = type }) {
-                        Text(type.rawValue)
-                            .font(.subheadline)
+        VStack(spacing: 0) {
+            // 主日期栏
+            HStack {
+                // 日期选择按钮
+                Button(action: { showingDatePicker = true }) {
+                    HStack(spacing: 8) {
+                        Text(dateFormatter.string(from: selectedDate))
+                            .font(.headline)
                             .fontWeight(.medium)
-                            .foregroundColor(selectedViewType == type ? .white : .secondary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                Rectangle()
-                                    .fill(selectedViewType == type ? .blue : .clear)
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .foregroundColor(.primary)
+                        
+                        Image(systemName: "calendar")
+                            .font(.subheadline)
+                            .foregroundColor(.blue)
+                    }
+                }
+                
+                Spacer()
+                
+                // 视图类型选择器
+                HStack(spacing: 8) {
+                    ForEach(PlanningView.PlanningViewType.allCases, id: \.self) { type in
+                        Button(action: { 
+                            selectedViewType = type
+                        }) {
+                            Text(type.rawValue)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(selectedViewType == type ? .white : .secondary)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(
+                                    Rectangle()
+                                        .fill(selectedViewType == type ? .blue : .clear)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
                     }
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            
+            // 展开的子功能栏
+            if isExpanded && selectedViewType == .day {
+                VStack(spacing: 0) {
+                    HStack(spacing: 0) {
+                        ForEach(ContentView.DaySubViewType.allCases, id: \.self) { subView in
+                            Button(action: { selectedSubView = subView }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: subView.icon)
+                                        .font(.caption)
+                                    Text(subView.rawValue)
+                                        .font(.subheadline)
+                                }
+                                .foregroundColor(selectedSubView == subView ? .blue : .secondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(
+                                    Rectangle()
+                                        .fill(selectedSubView == subView ? .blue.opacity(0.1) : .clear)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                )
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 8)
+                }
+                .transition(.asymmetric(
+                    insertion: .move(edge: .top).combined(with: .opacity),
+                    removal: .move(edge: .top).combined(with: .opacity)
+                ))
+            }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
         .background(
             Rectangle()
                 .fill(.ultraThinMaterial)
@@ -507,6 +565,12 @@ struct PlanningFloatingDateBar: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal, 16) // 左右留边距
         .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 2) // 添加阴影增强悬浮效果
+        .onChange(of: selectedViewType) { oldValue, newValue in
+            // 监听视图类型变化，自动展开/收起
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                isExpanded = (newValue == .day)
+            }
+        }
     }
 }
 
