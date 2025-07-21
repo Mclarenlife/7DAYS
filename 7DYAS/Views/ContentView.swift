@@ -19,6 +19,11 @@ struct ContentView: View {
     @State private var timelineSelectedDate = Date()
     @State private var showingTimelineDatePicker = false
     
+    // 计划视图状态
+    @State private var planningSelectedDate = Date()
+    @State private var showingPlanningDatePicker = false
+    @State private var planningViewType: PlanningView.PlanningViewType = .day
+    
     enum MainTab: Int, CaseIterable {
         case timeline = 0
         case planning = 1
@@ -68,7 +73,10 @@ struct ContentView: View {
                         }
                         .tag(MainTab.timeline)
                         
-                        PlanningView()
+                        PlanningView(
+                            selectedDate: $planningSelectedDate,
+                            selectedViewType: $planningViewType
+                        )
                             .tag(MainTab.planning)
                         
                         CheckInView()
@@ -84,19 +92,35 @@ struct ContentView: View {
                 }
             }
             
-            // 时间线视图的悬浮日期栏
-            if selectedTab == .timeline {
-                VStack {
-                    Spacer()
-                        .frame(height: 140) // 固定距离，适配固定顶栏
-                    
+            // 时间线视图的悬浮日期栏 - 使用模糊动画组件
+            VStack {
+                Spacer()
+                    .frame(height: 140) // 固定距离，适配固定顶栏
+                
+                BlurAnimationWrapper(isVisible: selectedTab == .timeline) {
                     TimelineFloatingDateBar(
                         selectedDate: $timelineSelectedDate,
                         showingDatePicker: $showingTimelineDatePicker
                     )
-                    
-                    Spacer()
                 }
+                
+                Spacer()
+            }
+            
+            // 计划视图的悬浮日期栏 - 使用相同的模糊动画效果
+            VStack {
+                Spacer()
+                    .frame(height: 140) // 固定距离，适配固定顶栏
+                
+                BlurAnimationWrapper(isVisible: selectedTab == .planning) {
+                    PlanningFloatingDateBar(
+                        selectedDate: $planningSelectedDate,
+                        selectedViewType: $planningViewType,
+                        showingDatePicker: $showingPlanningDatePicker
+                    )
+                }
+                
+                Spacer()
             }
             
             // 底部悬浮操作栏
@@ -124,6 +148,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingTimelineDatePicker) {
             TimelineDatePickerSheet(selectedDate: $timelineSelectedDate)
+        }
+        .sheet(isPresented: $showingPlanningDatePicker) {
+            PlanningDatePickerSheet(selectedDate: $planningSelectedDate)
         }
     }
 }
@@ -303,6 +330,25 @@ struct FloatingActionBar: View {
     }
 }
 
+// 模糊动画包装组件
+struct BlurAnimationWrapper<Content: View>: View {
+    let content: Content
+    let isVisible: Bool
+    
+    init(isVisible: Bool, @ViewBuilder content: () -> Content) {
+        self.isVisible = isVisible
+        self.content = content()
+    }
+    
+    var body: some View {
+        content
+            .blur(radius: isVisible ? 0 : 12) // 更强的模糊效果
+            .opacity(isVisible ? 1 : 0)
+            .scaleEffect(isVisible ? 1 : 0.9) // 轻微缩放
+            .animation(.spring(response: 0.6, dampingFraction: 0.8, blendDuration: 0), value: isVisible) // 使用弹簧动画
+    }
+}
+
 // 简化的动画背景组件
 struct SimpleAnimatedBackground: View {
     let isFloating: Bool
@@ -389,6 +435,107 @@ struct AnimatedBackground: View {
         .onChange(of: isFloating) { oldValue, newValue in
             withAnimation(.easeInOut(duration: 0.4)) {
                 animationProgress = newValue ? 1 : 0
+            }
+        }
+    }
+}
+
+// 计划视图悬浮日期栏组件
+struct PlanningFloatingDateBar: View {
+    @Binding var selectedDate: Date
+    @Binding var selectedViewType: PlanningView.PlanningViewType
+    @Binding var showingDatePicker: Bool
+    
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        switch selectedViewType {
+        case .day:
+            formatter.dateFormat = "MM月dd日 EEEE"
+        case .week:
+            formatter.dateFormat = "MM月第W周"
+        case .month:
+            formatter.dateFormat = "yyyy年MM月"
+        case .year:
+            formatter.dateFormat = "yyyy年"
+        }
+        return formatter
+    }
+    
+    var body: some View {
+        HStack {
+            // 日期选择按钮
+            Button(action: { showingDatePicker = true }) {
+                HStack(spacing: 8) {
+                    Text(dateFormatter.string(from: selectedDate))
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                    
+                    Image(systemName: "calendar")
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
+                }
+            }
+            
+            Spacer()
+            
+            // 视图类型选择器
+            HStack(spacing: 8) {
+                ForEach(PlanningView.PlanningViewType.allCases, id: \.self) { type in
+                    Button(action: { selectedViewType = type }) {
+                        Text(type.rawValue)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(selectedViewType == type ? .white : .secondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                Rectangle()
+                                    .fill(selectedViewType == type ? .blue : .clear)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(
+            Rectangle()
+                .fill(.ultraThinMaterial)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal, 16) // 左右留边距
+        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 2) // 添加阴影增强悬浮效果
+    }
+}
+
+// 计划视图日期选择器 Sheet
+struct PlanningDatePickerSheet: View {
+    @Binding var selectedDate: Date
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                DatePicker(
+                    "选择日期",
+                    selection: $selectedDate,
+                    displayedComponents: [.date]
+                )
+                .datePickerStyle(.graphical)
+                .padding()
+                
+                Spacer()
+            }
+            .navigationTitle("选择日期")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("完成") {
+                        dismiss()
+                    }
+                }
             }
         }
     }

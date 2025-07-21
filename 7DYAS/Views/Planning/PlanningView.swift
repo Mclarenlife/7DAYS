@@ -8,9 +8,9 @@
 import SwiftUI
 
 struct PlanningView: View {
+    @Binding var selectedDate: Date
+    @Binding var selectedViewType: PlanningViewType
     @EnvironmentObject var dataManager: DataManager
-    @State private var selectedViewType: PlanningViewType = .day
-    @State private var selectedDate = Date()
     @State private var showingNewTask = false
     
     enum PlanningViewType: String, CaseIterable {
@@ -30,28 +30,20 @@ struct PlanningView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // 简化的顶部导航
-            PlanningHeader(
-                selectedViewType: $selectedViewType,
-                selectedDate: $selectedDate,
-                onNewTask: { showingNewTask = true }
-            )
-            
-            // 内容区域
-            Group {
-                switch selectedViewType {
-                case .day:
-                    DayPlanningView(selectedDate: selectedDate)
-                case .week:
-                    WeekPlanningView(selectedDate: selectedDate)
-                case .month:
-                    MonthPlanningView(selectedDate: selectedDate)
-                case .year:
-                    YearPlanningView(selectedDate: selectedDate)
-                }
+        // 内容区域 - 头部现在由 ContentView 管理
+        Group {
+            switch selectedViewType {
+            case .day:
+                DayPlanningView(selectedDate: selectedDate)
+            case .week:
+                WeekPlanningView(selectedDate: selectedDate)
+            case .month:
+                MonthPlanningView(selectedDate: selectedDate)
+            case .year:
+                YearPlanningView(selectedDate: selectedDate)
             }
         }
+        .padding(.top, 20) // 为悬浮日期栏留出空间
         .sheet(isPresented: $showingNewTask) {
             NewTaskView()
         }
@@ -362,6 +354,9 @@ struct YearPlanningView: View {
 }
 
 #Preview {
-    PlanningView()
-        .environmentObject(DataManager.shared)
+    PlanningView(
+        selectedDate: .constant(Date()),
+        selectedViewType: .constant(.day)
+    )
+    .environmentObject(DataManager.shared)
 }
