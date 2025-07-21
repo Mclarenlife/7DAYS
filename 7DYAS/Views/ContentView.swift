@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var showingNewIdea = false
     @State private var showingFocusTimer = false
     @State private var showingGlobalSearch = false
+    @State private var showingBottomTimerBar = false // 底部计时条状态
     
     // 时间线日期栏状态
     @State private var timelineSelectedDate = Date()
@@ -145,6 +146,21 @@ struct ContentView: View {
             // 底部悬浮操作栏
             VStack {
                 Spacer()
+                
+                // 底部计时条
+                if showingBottomTimerBar {
+                    BottomTimerBar(
+                        onTap: { 
+                            showingFocusTimer = true 
+                            showingBottomTimerBar = false
+                        },
+                        onDismiss: { showingBottomTimerBar = false }
+                    )
+                    .environmentObject(timerService)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .padding(.bottom, 8)
+                }
+                
                 FloatingActionBar(
                     onHomeAction: { selectedTab = .timeline },
                     onIdeaAction: { showingNewIdea = true },
@@ -161,7 +177,10 @@ struct ContentView: View {
         }
         .overlay(
             // 底部专注弹窗
-            BottomFocusSheet(isPresented: $showingFocusTimer)
+            BottomFocusSheet(
+                isPresented: $showingFocusTimer,
+                showingBottomTimerBar: $showingBottomTimerBar
+            )
                 .environmentObject(dataManager)
                 .environmentObject(timerService)
         )
@@ -173,6 +192,12 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingPlanningDatePicker) {
             PlanningDatePickerSheet(selectedDate: $planningSelectedDate)
+        }
+        .onChange(of: timerService.sessionState) { oldValue, newValue in
+            // 当计时器状态变为空闲时，隐藏底部计时条
+            if newValue == .idle {
+                showingBottomTimerBar = false
+            }
         }
     }
 }
@@ -737,6 +762,7 @@ struct TimelineDatePickerSheet: View {
 // 底部专注弹窗组件
 struct BottomFocusSheet: View {
     @Binding var isPresented: Bool
+    @Binding var showingBottomTimerBar: Bool
     @EnvironmentObject var timerService: TimerService
     @EnvironmentObject var dataManager: DataManager
     
@@ -746,6 +772,7 @@ struct BottomFocusSheet: View {
     @State private var relatedEvents: [String] = []
     @State private var offset: CGFloat = UIScreen.main.bounds.height
     @State private var dragOffset: CGFloat = 0
+    @State private var isAnimatingOut = false // 新增：控制模糊消失动画
     
     private let minHeight: CGFloat = 500
     private let maxHeight: CGFloat = UIScreen.main.bounds.height * 0.8
@@ -782,7 +809,8 @@ struct BottomFocusSheet: View {
                                     title: $sessionTitle,
                                     selectedTags: $selectedTags,
                                     description: $sessionDescription,
-                                    relatedEvents: $relatedEvents
+                                    relatedEvents: $relatedEvents,
+                                    onDismiss: { dismissSheet() }
                                 )
                                 
                                 // 专注信息输入
@@ -802,7 +830,11 @@ struct BottomFocusSheet: View {
                         RoundedRectangle(cornerRadius: 20)
                             .fill(.ultraThickMaterial)
                     )
+                    .blur(radius: isAnimatingOut ? 12 : 0) // 模糊效果
+                    .opacity(isAnimatingOut ? 0 : 1) // 透明度动画
+                    .scaleEffect(isAnimatingOut ? 0.9 : 1) // 缩放效果
                     .offset(y: offset + dragOffset)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isAnimatingOut) // 模糊动画
                     .gesture(
                         DragGesture()
                             .onChanged { value in
@@ -810,7 +842,7 @@ struct BottomFocusSheet: View {
                             }
                             .onEnded { value in
                                 if value.translation.height > 100 {
-                                    dismissSheet()
+                                    dismissSheetWithDrag()
                                 } else {
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                         dragOffset = 0
@@ -836,6 +868,7 @@ struct BottomFocusSheet: View {
     }
     
     private func showSheet() {
+        isAnimatingOut = false // 重置动画状态
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             offset = 0
         }
@@ -848,6 +881,26 @@ struct BottomFocusSheet: View {
     }
     
     private func dismissSheet() {
+        // 先启动模糊消失动画
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+            isAnimatingOut = true
+        }
+        
+        // 延迟关闭弹窗，让模糊动画完成
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            isPresented = false
+            // 重置动画状态
+            isAnimatingOut = false
+        }
+    }
+    
+    private func dismissSheetWithDrag() {
+        // 如果计时器正在运行，显示底部计时条
+        if timerService.isRunning || timerService.sessionState == .paused {
+            showingBottomTimerBar = true
+        }
+        
+        // 关闭弹窗
         isPresented = false
     }
     
@@ -931,6 +984,8 @@ struct TimerControlButtons: View {
     @Binding var selectedTags: [String]
     @Binding var description: String
     @Binding var relatedEvents: [String]
+    
+    let onDismiss: () -> Void
     
     var body: some View {
         VStack(spacing: 16) {
@@ -1060,6 +1115,11 @@ struct TimerControlButtons: View {
         // 提供触觉反馈
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
+        
+        // 延迟关闭弹窗，让用户感受到保存成功的反馈
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            onDismiss()
+        }
     }
     
     // 生成唯一标题
@@ -1276,6 +1336,91 @@ struct EventInputField: View {
     
     private func removeEvent(_ event: String) {
         selectedEvents.removeAll { $0 == event }
+    }
+}
+
+// 底部计时条组件
+struct BottomTimerBar: View {
+    @EnvironmentObject var timerService: TimerService
+    let onTap: () -> Void
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // 计时显示
+            HStack(spacing: 8) {
+                // 运行状态指示器
+                Circle()
+                    .fill(timerService.isRunning ? .green : .orange)
+                    .frame(width: 8, height: 8)
+                    .scaleEffect(timerService.isRunning ? 1.2 : 1.0)
+                    .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: timerService.isRunning)
+                
+                // 计时时间
+                Text(formatTime(timerService.elapsedTime))
+                    .font(.system(size: 16, weight: .medium, design: .monospaced))
+                    .foregroundColor(.primary)
+                
+                // 状态文字
+                Text(timerService.sessionState.rawValue)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            // 操作按钮
+            HStack(spacing: 12) {
+                // 暂停/继续按钮
+                Button(action: {
+                    if timerService.isRunning {
+                        timerService.pauseSession()
+                    } else if timerService.sessionState == .paused {
+                        timerService.resumeSession()
+                    }
+                }) {
+                    Image(systemName: timerService.isRunning ? "pause.fill" : "play.fill")
+                        .font(.title3)
+                        .foregroundColor(.white)
+                        .frame(width: 32, height: 32)
+                        .background(timerService.isRunning ? .orange : .green)
+                        .clipShape(Circle())
+                }
+                
+                // 关闭按钮
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.title3)
+                        .foregroundColor(.white)
+                        .frame(width: 32, height: 32)
+                        .background(.secondary)
+                        .clipShape(Circle())
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: -2)
+        )
+        .padding(.horizontal, 16)
+        .onTapGesture {
+            onTap()
+        }
+    }
+    
+    private func formatTime(_ timeInterval: TimeInterval) -> String {
+        let hours = Int(timeInterval) / 3600
+        let minutes = Int(timeInterval) % 3600 / 60
+        let seconds = Int(timeInterval) % 60
+        
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            return String(format: "%02d:%02d", minutes, seconds)
+        }
     }
 }
 
