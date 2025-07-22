@@ -111,7 +111,7 @@ struct ContentView: View {
             // 时间线视图的悬浮日期栏 - 使用模糊动画组件
             VStack {
                 Spacer()
-                    .frame(height: 140) // 固定距离，适配固定顶栏
+                    .frame(height: 110) // 固定距离，适配固定顶栏
                 
                 BlurAnimationWrapper(isVisible: selectedTab == .timeline) {
                     TimelineFloatingDateBar(
@@ -126,7 +126,7 @@ struct ContentView: View {
             // 计划视图的悬浮日期栏 - 使用相同的模糊动画效果
             VStack {
                 Spacer()
-                    .frame(height: 140) // 固定距离，适配固定顶栏
+                    .frame(height: 110) // 固定距离，适配固定顶栏
                 
                 BlurAnimationWrapper(isVisible: selectedTab == .planning) {
                     PlanningFloatingDateBar(
@@ -205,43 +205,74 @@ struct ContentView: View {
 // 顶部标签栏组件
 struct TopTabBar: View {
     @Binding var selectedTab: ContentView.MainTab
+    @EnvironmentObject var dataManager: DataManager
     let isFloating: Bool
+    
+    @State private var currentStatIndex = 0
+    @State private var timer: Timer?
+    
+    var statisticsTexts: [String] {
+        let focusCount = dataManager.getTodayFocusSessionsCount()
+        let tasksCount = dataManager.getTodayTasksCount()
+        let checkInsCount = dataManager.getTodayCheckInsCount()
+        
+        return [
+            "今日专注\(focusCount)次",
+            "\(tasksCount)项待做",
+            "\(checkInsCount)项待打卡"
+        ]
+    }
     
     var body: some View {
         VStack(spacing: 0) {
-            // 应用标题
-            HStack {
-                Text("7DAYS")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .foregroundColor(.primary)
+            // 应用标题 - 动态统计信息
+            ZStack {
+                // 居中的统计信息文字
+                Text(statisticsTexts[currentStatIndex])
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .trailing)),
+                        removal: .opacity.combined(with: .move(edge: .leading))
+                    ))
+                    .id("stat-\(currentStatIndex)") // 强制重新渲染以触发过渡动画
                 
-                Spacer()
-                
-                // 可以在这里添加设置按钮或其他功能
-                Button(action: {}) {
-                    Image(systemName: "person.circle")
-                        .font(.title2)
-                        .foregroundColor(.secondary)
+                // 右侧设置按钮
+                HStack {
+                    Spacer()
+                    
+                    Button(action: {}) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.callout)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             .padding(.horizontal, 20)
             .padding(.top, 10)
             .padding(.bottom, 16)
+            .onAppear {
+                startStatisticsRotation()
+            }
+            .onDisappear {
+                stopStatisticsRotation()
+            }
             
             // 标签栏
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 0) {
-                    ForEach(ContentView.MainTab.allCases, id: \.self) { tab in
-                        TabButton(
-                            tab: tab,
-                            isSelected: selectedTab == tab,
-                            action: { selectedTab = tab }
-                        )
+            VStack(spacing: 0) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 0) {
+                        ForEach(ContentView.MainTab.allCases, id: \.self) { tab in
+                            TabButton(
+                                tab: tab,
+                                isSelected: selectedTab == tab,
+                                action: { selectedTab = tab }
+                            )
+                        }
                     }
+                    .padding(.horizontal, 20)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 8)
             }
             
             // 渐变透明底边 (仅悬浮模式显示)
@@ -272,6 +303,20 @@ struct TopTabBar: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: 0))
     }
+    
+    // MARK: - Statistics Rotation Methods
+    private func startStatisticsRotation() {
+        timer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+            withAnimation(.easeInOut(duration: 0.6)) {
+                currentStatIndex = (currentStatIndex + 1) % statisticsTexts.count
+            }
+        }
+    }
+    
+    private func stopStatisticsRotation() {
+        timer?.invalidate()
+        timer = nil
+    }
 }
 
 // 单个标签按钮
@@ -282,27 +327,13 @@ struct TabButton: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
-                HStack(spacing: 8) {
-                    Image(systemName: tab.icon)
-                        .font(.title2)
-                        .foregroundColor(isSelected ? .blue : .secondary)
-                    
-                    Text(tab.title)
-                        .font(.headline)
-                        .fontWeight(isSelected ? .bold : .semibold)
-                        .foregroundColor(isSelected ? .blue : .secondary)
-                }
-                
-                // 选中指示器
-                Rectangle()
-                    .fill(isSelected ? Color.blue : Color.clear)
-                    .frame(height: 3)
-                    .animation(.easeInOut(duration: 0.2), value: isSelected)
-            }
-            .frame(minWidth: 90)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            Text(tab.title)
+                .font(.title)
+                .fontWeight(.light)
+                .foregroundColor(isSelected ? .blue : .secondary)
+                .frame(minWidth: 70)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 8)
         }
         .buttonStyle(PlainButtonStyle())
     }

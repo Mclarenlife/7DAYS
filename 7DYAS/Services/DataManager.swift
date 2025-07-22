@@ -235,4 +235,24 @@ class DataManager: ObservableObject {
     func getUnarchiveIdeas() -> [TemporaryIdea] {
         return temporaryIdeas.filter { !$0.isArchived }
     }
+    
+    // MARK: - Today Statistics
+    func getTodayFocusSessionsCount() -> Int {
+        let today = Date()
+        return focusSessions.filter { session in
+            Calendar.current.isDate(session.startTime, inSameDayAs: today)
+        }.count
+    }
+    
+    func getTodayTasksCount() -> Int {
+        let today = Date()
+        return tasks.filter { task in
+            guard let dueDate = task.dueDate else { return false }
+            return Calendar.current.isDate(dueDate, inSameDayAs: today) && !task.isCompleted
+        }.count
+    }
+    
+    func getTodayCheckInsCount() -> Int {
+        return checkIns.filter { $0.isActive }.count
+    }
 }
