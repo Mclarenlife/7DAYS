@@ -71,42 +71,47 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            VStack(spacing: 0) {
-                // 固定样式的顶部标签栏
-                TopTabBar(selectedTab: $selectedTab, isFloating: false)
-                
-                // 主内容区域
-                ScrollViewReader { proxy in
-                    TabView(selection: $selectedTab) {
-                        TimelineView(
-                            selectedDate: $timelineSelectedDate
-                        )
-                        .tag(MainTab.timeline)
-                        
-                        PlanningView(
-                            selectedDate: $planningSelectedDate,
-                            selectedViewType: $planningViewType,
-                            selectedDaySubView: $selectedDaySubView
-                        )
-                            .tag(MainTab.planning)
-                        
-                        CheckInView()
-                            .tag(MainTab.checkin)
-                        
-                        AnalyticsView()
-                            .tag(MainTab.analytics)
-                        
-                        TemporaryView()
-                            .tag(MainTab.temporary)
-                    }
-                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+            // 主内容区域 - 全屏显示
+            ScrollViewReader { proxy in
+                TabView(selection: $selectedTab) {
+                    TimelineView(
+                        selectedDate: $timelineSelectedDate
+                    )
+                    .tag(MainTab.timeline)
+                    
+                    PlanningView(
+                        selectedDate: $planningSelectedDate,
+                        selectedViewType: $planningViewType,
+                        selectedDaySubView: $selectedDaySubView
+                    )
+                        .tag(MainTab.planning)
+                    
+                    CheckInView()
+                        .tag(MainTab.checkin)
+                    
+                    AnalyticsView()
+                        .tag(MainTab.analytics)
+                    
+                    TemporaryView()
+                        .tag(MainTab.temporary)
                 }
+                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
             }
+            
+            // 悬浮顶部标签栏
+            VStack {
+                TopTabBar(selectedTab: $selectedTab, isFloating: true)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 0) // 移除顶部padding，让顶栏延伸到状态栏下方
+                
+                Spacer()
+            }
+            .ignoresSafeArea(edges: .top) // 忽略顶部安全区域
             
             // 时间线视图的悬浮日期栏 - 使用模糊动画组件
             VStack {
                 Spacer()
-                    .frame(height: 110) // 固定距离，适配固定顶栏
+                    .frame(height: 140) // 调整距离，适配悬浮顶栏
                 
                 BlurAnimationWrapper(isVisible: selectedTab == .timeline) {
                     TimelineFloatingDateBar(
@@ -121,7 +126,7 @@ struct ContentView: View {
             // 计划视图的悬浮日期栏 - 使用相同的模糊动画效果
             VStack {
                 Spacer()
-                    .frame(height: 110) // 固定距离，适配固定顶栏
+                    .frame(height: 140) // 调整距离，适配悬浮顶栏
                 
                 BlurAnimationWrapper(isVisible: selectedTab == .planning) {
                     PlanningFloatingDateBar(
@@ -245,7 +250,7 @@ struct TopTabBar: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 10)
+            .padding(.top, 50) // 增加顶部padding为状态栏留出空间
             .padding(.bottom, 16)
             .onAppear {
                 startStatisticsRotation()
@@ -255,48 +260,21 @@ struct TopTabBar: View {
             }
             
             // 标签栏
-            VStack(spacing: 0) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 0) {
-                        ForEach(ContentView.MainTab.allCases, id: \.self) { tab in
-                            TabButton(
-                                tab: tab,
-                                isSelected: selectedTab == tab,
-                                action: { selectedTab = tab }
-                            )
-                        }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(ContentView.MainTab.allCases, id: \.self) { tab in
+                        TabButton(
+                            tab: tab,
+                            isSelected: selectedTab == tab,
+                            action: { selectedTab = tab }
+                        )
                     }
-                    .padding(.horizontal, 20)
                 }
-            }
-            
-            // 渐变透明底边 (仅悬浮模式显示)
-            if isFloating {
-                LinearGradient(
-                    gradient: Gradient(stops: [
-                        .init(color: Color.clear.opacity(0.3), location: 0),
-                        .init(color: Color.clear.opacity(0.1), location: 0.5),
-                        .init(color: Color.clear, location: 1)
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 8)
-            } else {
-                Divider()
+                .padding(.horizontal, 20)
             }
         }
-        .background(
-            Group {
-                if isFloating {
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                } else {
-                    Color(.systemBackground)
-                }
-            }
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 0))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
     }
     
     // MARK: - Statistics Rotation Methods
@@ -325,7 +303,7 @@ struct TabButton: View {
             Text(tab.title)
                 .font(.title)
                 .fontWeight(.light)
-                .foregroundColor(isSelected ? .blue : .secondary)
+                .foregroundColor(isSelected ? .blue : .primary)
                 .frame(minWidth: 70)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 8)

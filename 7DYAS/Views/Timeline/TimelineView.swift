@@ -69,9 +69,8 @@ struct TimelineView: View {
     @EnvironmentObject var timerService: TimerService
     
     var body: some View {
-        // 直接显示时间线内容，日期栏现在在 ContentView 中管理
+        // 直接显示时间线内容，内容可以在悬浮组件下方显示
         TimelineContent(selectedDate: selectedDate)
-            .padding(.top, 90) // 为悬浮日期栏留出合适空间，与日期栏保持美观间距，再增加5pt
     }
 }
 
@@ -196,22 +195,35 @@ struct TimelineContent: View {
     
     var body: some View {
         if sessionsForDate.isEmpty {
-            EmptyTimelineView()
+            GeometryReader { geometry in
+                EmptyTimelineView()
+                    .frame(minHeight: geometry.size.height) // 使用全屏高度
+            }
         } else {
             ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(sessionsForDate) { session in
-                            FocusSessionCard(session: session)
-                                .id(session.id) // 为每个卡片添加ID以支持滚动定位
+                GeometryReader { geometry in
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(Array(sessionsForDate.enumerated()), id: \.element.id) { index, session in
+                                VStack(spacing: 0) {
+                                    FocusSessionCard(session: session)
+                                        .id(session.id) // 为每个卡片添加ID以支持滚动定位
+                                    
+                                    // 在每个专注事项下方添加渐变分隔线，除了最后一个
+                                    if index < sessionsForDate.count - 1 {
+                                        GradientDivider()
+                                    }
+                                }
+                            }
+                            
+                            // 底部统计信息区域
+                            TimelineBottomStats()
+                                .id("bottom_spacer")
                         }
-                        
-                        // 底部统计信息区域
-                        TimelineBottomStats()
-                            .id("bottom_spacer")
+                        .padding(.top, 160) // 为悬浮组件留出空间
+                        .padding(.bottom, 120) // 为底部悬浮按钮留出空间
+                        .frame(minHeight: geometry.size.height) // 使用全屏高度
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 8) // 减少垂直padding，让内容更靠近日期栏
                 }
                 .onChange(of: dataManager.focusSessions) { oldSessions, newSessions in
                     // 当专注会话数据发生任何变化时，检查今天的数据
@@ -260,10 +272,11 @@ struct EmptyTimelineView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .position(
                 x: geometry.size.width / 2,
-                y: geometry.size.height / 2 - 50 // 稍微往上偏移，考虑底部按钮
+                y: geometry.size.height / 2 // 居中显示，悬浮组件不影响定位
             )
         }
-        .padding()
+        .padding(.top, 160) // 为悬浮组件留出空间
+        .padding(.bottom, 120) // 为底部悬浮按钮留出空间
     }
 }
 
@@ -592,13 +605,13 @@ struct FocusSessionCard: View {
                 }
             }
             .buttonStyle(PlainButtonStyle())
-            .padding(16)
+            .padding(.horizontal, 20) // 左右内边距20pt
+            .padding(.vertical, 16) // 上下内边距16pt
             .blur(radius: isAnimating ? 2 : 0)
             .animation(.easeOut(duration: 0.3), value: isAnimating)
         }
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .background(Color.white) // 使用白色背景
+        .contentShape(Rectangle()) // 确保整个区域都可点击
         .contextMenu {
             // 编辑按钮
             Button(action: {
@@ -1127,6 +1140,7 @@ struct TimelineBottomStats: View {
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
+            .padding(.horizontal, 20) // 与卡片内容对齐
             
             // 底部留白
             Color.clear
@@ -1134,6 +1148,28 @@ struct TimelineBottomStats: View {
         }
         .frame(minHeight: 180) // 增加底部区域高度
         .padding(.top, 30) // 与最后一个专注卡片保持距离
+    }
+}
+
+// 自定义渐变分隔线组件
+struct GradientDivider: View {
+    var body: some View {
+        // 全屏宽度的渐变分隔线
+        Rectangle()
+            .fill(
+                LinearGradient(
+                    gradient: Gradient(stops: [
+                        .init(color: Color.clear, location: 0.0),
+                        .init(color: Color.gray.opacity(0.15), location: 0.2),
+                        .init(color: Color.gray.opacity(0.15), location: 0.8),
+                        .init(color: Color.clear, location: 1.0)
+                    ]),
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .frame(height: 0.5)
+            .frame(maxWidth: .infinity) // 使用全屏宽度
     }
 }
 
