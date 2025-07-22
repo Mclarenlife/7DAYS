@@ -138,6 +138,13 @@ class DataManager: ObservableObject {
         saveFocusSessions()
     }
     
+    func updateFocusSession(_ session: FocusSession) {
+        if let index = focusSessions.firstIndex(where: { $0.id == session.id }) {
+            focusSessions[index] = session
+            saveFocusSessions()
+        }
+    }
+    
     func deleteFocusSession(_ session: FocusSession) {
         focusSessions.removeAll { $0.id == session.id }
         saveFocusSessions()

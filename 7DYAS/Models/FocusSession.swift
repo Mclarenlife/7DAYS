@@ -61,6 +61,18 @@ struct FocusSession: Identifiable, Codable {
         self.relatedTask = relatedTask
         self.notes = notes
     }
+    
+    init(id: UUID, title: String, startTime: Date, duration: TimeInterval, tags: [String] = [], relatedEvents: [String] = [], notes: String = "", relatedTask: UUID? = nil) {
+        self.id = id
+        self.title = title
+        self.startTime = startTime
+        self.duration = duration
+        self.endTime = startTime.addingTimeInterval(duration)
+        self.tags = tags
+        self.relatedEvents = relatedEvents
+        self.notes = notes
+        self.relatedTask = relatedTask
+    }
 }
 
 // 专注会话状态

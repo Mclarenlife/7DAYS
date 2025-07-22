@@ -19,8 +19,6 @@ struct ContentView: View {
     // 时间线日期栏状态
     @State private var timelineSelectedDate = Date()
     @State private var showingTimelineDatePicker = false
-    @State private var isTimelineManageMode = false // 时间线管理模式
-    @State private var selectedSessions: Set<UUID> = [] // 选中的专注会话
     
     // 计划视图状态
     @State private var planningSelectedDate = Date()
@@ -84,9 +82,7 @@ struct ContentView: View {
                             LazyVStack {
                                 // 内容区域
                                 TimelineView(
-                                    selectedDate: $timelineSelectedDate,
-                                    isManageMode: $isTimelineManageMode,
-                                    selectedSessions: $selectedSessions
+                                    selectedDate: $timelineSelectedDate
                                 )
                             }
                         }
@@ -120,9 +116,7 @@ struct ContentView: View {
                 BlurAnimationWrapper(isVisible: selectedTab == .timeline) {
                     TimelineFloatingDateBar(
                         selectedDate: $timelineSelectedDate,
-                        showingDatePicker: $showingTimelineDatePicker,
-                        isManageMode: $isTimelineManageMode,
-                        selectedSessions: $selectedSessions
+                        showingDatePicker: $showingTimelineDatePicker
                     )
                 }
                 
@@ -652,11 +646,7 @@ struct PlanningDatePickerSheet: View {
 struct TimelineFloatingDateBar: View {
     @Binding var selectedDate: Date
     @Binding var showingDatePicker: Bool
-    @Binding var isManageMode: Bool
-    @Binding var selectedSessions: Set<UUID>
     @EnvironmentObject var timerService: TimerService
-    @EnvironmentObject var dataManager: DataManager
-    @State private var showingDeleteAlert = false
     
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
@@ -675,50 +665,15 @@ struct TimelineFloatingDateBar: View {
         HStack {
             // 日期选择按钮
             Button(action: { showingDatePicker = true }) {
-                VStack(spacing: 2) {
+                VStack(spacing: 1) {
                     Text(dateFormatter.string(from: selectedDate))
-                        .font(.headline)
+                        .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
                     
                     Text(weekdayFormatter.string(from: selectedDate))
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundColor(.secondary)
-                }
-            }
-            
-            // 管理按钮
-            Button(action: {
-                if isManageMode {
-                    // 退出管理模式，清空选择
-                    selectedSessions.removeAll()
-                }
-                isManageMode.toggle()
-            }) {
-                Text(isManageMode ? "完成" : "管理")
-                    .font(.caption)
-                    .foregroundColor(isManageMode ? .red : .blue)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background((isManageMode ? Color.red : Color.blue).opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-            }
-            
-            // 删除按钮（仅在管理模式下显示）
-            if isManageMode && !selectedSessions.isEmpty {
-                Button(action: {
-                    showingDeleteAlert = true
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "trash")
-                        Text("删除")
-                    }
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.red.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
             }
             
@@ -728,7 +683,7 @@ struct TimelineFloatingDateBar: View {
             TimelineFloatingFocusStats()
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.vertical, 10)
         .background(
             Rectangle()
                 .fill(.ultraThinMaterial)
@@ -736,22 +691,6 @@ struct TimelineFloatingDateBar: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal, 30) // 左右留边距
         .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 2) // 添加阴影增强悬浮效果
-        .alert("删除专注记录", isPresented: $showingDeleteAlert) {
-            Button("取消", role: .cancel) { }
-            Button("删除", role: .destructive) {
-                // 删除选中的专注记录
-                for sessionId in selectedSessions {
-                    if let session = dataManager.focusSessions.first(where: { $0.id == sessionId }) {
-                        dataManager.deleteFocusSession(session)
-                    }
-                }
-                selectedSessions.removeAll()
-                // 退出管理模式
-                isManageMode = false
-            }
-        } message: {
-            Text("确定要删除选中的\(selectedSessions.count)条专注记录吗？此操作无法撤销。")
-        }
     }
 }
 
@@ -768,18 +707,18 @@ struct TimelineFloatingFocusStats: View {
     }
     
     var body: some View {
-        VStack(alignment: .center, spacing: 4) {
+        VStack(alignment: .center, spacing: 2) {
             Text("专注\(sessionCount)次")
-                .font(.caption)
+                .font(.caption2)
                 .foregroundColor(.secondary)
             
             Text(formatTime(totalFocusTime))
-                .font(.headline)
+                .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundColor(.orange)
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
         .background(
             Rectangle()
                 .fill(.orange.opacity(0.15))
@@ -871,15 +810,15 @@ struct BottomFocusSheet: View {
                     Spacer()
                     
                     VStack(spacing: 0) {
-                        // 拖拽指示器 - 只有这个区域可以拖拽窗口
+                        // 拖拽指示器 - 电纸书风格
                         VStack {
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(Color.secondary.opacity(0.5))
-                                .frame(width: 40, height: 4)
+                            Rectangle()
+                                .fill(Color.black.opacity(0.4))
+                                .frame(width: 40, height: 2)
                         }
                         .frame(height: 40) // 设置拖拽区域高度
                         .frame(maxWidth: .infinity) // 横向填满以便拖拽
-                        .background(Color.clear) // 透明背景扩大触摸区域
+                        .background(Color(.systemGray6)) // 电纸书风格的浅灰背景
                         .contentShape(Rectangle()) // 确保整个区域都可以响应手势
                         .simultaneousGesture(
                             DragGesture(minimumDistance: 0)
@@ -943,9 +882,12 @@ struct BottomFocusSheet: View {
                         }
                     }
                     .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(Color(.systemBackground))
-                            .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: -5)
+                        Rectangle()
+                            .fill(Color(.systemGray6)) // 电纸书风格的浅灰背景
+                            .overlay(
+                                Rectangle()
+                                    .stroke(Color.black.opacity(0.1), lineWidth: 1)
+                            )
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 20)) // 确保内容不溢出圆角边界
                     .blur(radius: isAnimatingOut ? 12 : 0) // 模糊效果
@@ -960,8 +902,9 @@ struct BottomFocusSheet: View {
         .onChange(of: isPresented) { oldValue, newValue in
             if newValue {
                 showSheet()
-                // 点击专注按钮时自动开始计时
+                // 点击专注按钮时，如果当前没有会话，关闭自定义开始时间
                 if timerService.sessionState == .idle {
+                    UserDefaults.standard.set(false, forKey: "enableCustomStartTime")
                     startFocusSession()
                 }
             } else {
@@ -1029,83 +972,124 @@ struct TimerDisplayView: View {
     
     // 计算当前圆圈的进度
     private var currentCircleProgress: Double {
+        guard let session = timerService.currentSession else {
+            let remainder = timerService.elapsedTime.truncatingRemainder(dividingBy: circleTimeInterval)
+            return remainder / circleTimeInterval
+        }
+        
+        // 如果开始时间在未来，不显示进度
+        if session.startTime > Date() {
+            return 0
+        }
+        
         let remainder = timerService.elapsedTime.truncatingRemainder(dividingBy: circleTimeInterval)
         return remainder / circleTimeInterval
     }
     
     var body: some View {
-        VStack(spacing: 16) {
-            // 计时器圆环
+        VStack(spacing: 24) {
+            // 电纸书风格的计时器圆环
             ZStack {
+                // 外层装饰边框
                 Circle()
-                    .stroke(Color.gray.opacity(0.3), lineWidth: 8)
+                    .stroke(Color.black, lineWidth: 2)
+                    .frame(width: 220, height: 220)
+                
+                // 内层背景圆
+                Circle()
+                    .stroke(Color.black.opacity(0.1), lineWidth: 1)
                     .frame(width: 200, height: 200)
                 
+                // 进度圆环 - 简洁的黑色线条
                 Circle()
                     .trim(from: 0, to: currentCircleProgress)
-                    .stroke(
-                        LinearGradient(
-                            colors: [.orange, .red],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                    )
+                    .stroke(Color.black, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                     .frame(width: 200, height: 200)
                     .rotationEffect(.degrees(-90))
                     .animation(.easeInOut(duration: 0.3), value: timerService.elapsedTime)
                 
-                VStack(spacing: 4) {
-                    // 可点击的计时时间
+                // 中心内容区域
+                VStack(spacing: 8) {
+                    // 可点击的计时时间 - 电纸书风格字体
                     Button(action: {
                         showingTimerSettings = true
                     }) {
-                        Text(formatTime(timerService.elapsedTime))
-                            .font(.system(size: 32, weight: .bold, design: .monospaced))
-                            .foregroundColor(.primary)
+                        Text(getDisplayTime())
+                            .font(.system(size: 36, weight: .light, design: .monospaced))
+                            .foregroundColor(.black)
+                            .tracking(1) // 字符间距
                     }
                     .buttonStyle(PlainButtonStyle())
                     
-                    Text(timerService.sessionState.rawValue)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    // 状态文字 - 细线条字体
+                    Text(getStatusText())
+                        .font(.system(size: 14, weight: .light))
+                        .foregroundColor(.black.opacity(0.7))
+                        .tracking(0.5)
+                        .textCase(.uppercase)
+                    
+                    // 显示开始时间（如果有当前会话）
+                    if let session = timerService.currentSession {
+                        let startTimeText = timerService.isStartTimeInFuture() ? 
+                            "将于 \(formatStartTime(session.startTime)) 开始" : 
+                            "开始于 \(formatStartTime(session.startTime))"
+                        
+                        Text(startTimeText)
+                            .font(.system(size: 10, weight: .light))
+                            .foregroundColor(.black.opacity(0.5))
+                            .tracking(0.5)
+                    }
                 }
             }
-            .padding(.top, 20) // 增加顶部边距，避免与拖拽手柄重叠
+            .padding(.top, 20)
             
-            // 状态指示和圆圈完成标记
-            VStack(spacing: 8) {
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(timerService.isRunning ? .green : .gray)
+            // 电纸书风格的状态指示
+            VStack(spacing: 16) {
+                // 运行状态指示 - 简洁的几何形状
+                HStack(spacing: 12) {
+                    // 状态指示器 - 方形而非圆形
+                    Rectangle()
+                        .fill(getStatusIndicatorColor())
                         .frame(width: 8, height: 8)
+                        .animation(.easeInOut(duration: 0.3), value: timerService.isRunning)
                     
-                    Text(timerService.isRunning ? "专注中" : "已暂停")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    Text(getStatusDisplayText())
+                        .font(.system(size: 12, weight: .light))
+                        .foregroundColor(.black.opacity(0.8))
+                        .tracking(1)
+                        .textCase(.uppercase)
                 }
                 
-                // 圆圈完成标记
+                // 完成轮次显示 - 电纸书风格
                 if completedCircles > 0 {
-                    HStack(spacing: 4) {
-                        Text("完成轮次:")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                    VStack(spacing: 8) {
+                        Text("COMPLETED CYCLES")
+                            .font(.system(size: 10, weight: .light))
+                            .foregroundColor(.black.opacity(0.6))
+                            .tracking(1)
+                            .textCase(.uppercase)
                         
-                        HStack(spacing: 4) {
-                            ForEach(0..<min(completedCircles, 10), id: \.self) { _ in
-                                Circle()
-                                    .fill(.orange)
+                        HStack(spacing: 6) {
+                            ForEach(0..<min(completedCircles, 8), id: \.self) { _ in
+                                Rectangle()
+                                    .fill(Color.black)
                                     .frame(width: 6, height: 6)
                             }
                             
-                            if completedCircles > 10 {
-                                Text("+\(completedCircles - 10)")
-                                    .font(.caption2)
-                                    .foregroundColor(.orange)
+                            if completedCircles > 8 {
+                                Text("+\(completedCircles - 8)")
+                                    .font(.system(size: 10, weight: .light))
+                                    .foregroundColor(.black)
+                                    .tracking(0.5)
                             }
                         }
                     }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
+                    .overlay(
+                        Rectangle()
+                            .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                    )
                 }
             }
         }
@@ -1114,6 +1098,7 @@ struct TimerDisplayView: View {
                 circleTimeInterval: $circleTimeInterval,
                 showHourFormat: $showHourFormat
             )
+            .environmentObject(timerService)
         }
     }
     
@@ -1129,6 +1114,67 @@ struct TimerDisplayView: View {
         } else {
             let totalMinutes = Int(timeInterval) / 60
             return String(format: "%02d:%02d", totalMinutes, seconds)
+        }
+    }
+    
+    private func formatStartTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+    
+    private func getDisplayTime() -> String {
+        guard let session = timerService.currentSession else {
+            return formatTime(timerService.elapsedTime)
+        }
+        
+        let currentTime = Date()
+        if session.startTime > currentTime {
+            // 显示距离开始时间的倒计时
+            let timeUntilStart = session.startTime.timeIntervalSince(currentTime)
+            return "-\(formatTime(timeUntilStart))"
+        } else {
+            // 正常显示已过时间
+            return formatTime(timerService.elapsedTime)
+        }
+    }
+    
+    private func getStatusText() -> String {
+        guard let session = timerService.currentSession else {
+            return timerService.sessionState.rawValue
+        }
+        
+        let currentTime = Date()
+        if session.startTime > currentTime {
+            return "WAITING"
+        } else {
+            return timerService.sessionState.rawValue
+        }
+    }
+    
+    private func getStatusIndicatorColor() -> Color {
+        guard let session = timerService.currentSession else {
+            return timerService.isRunning ? Color.black : Color.black.opacity(0.3)
+        }
+        
+        let currentTime = Date()
+        if session.startTime > currentTime {
+            return Color.black.opacity(0.5) // 等待状态用中等透明度
+        } else {
+            return timerService.isRunning ? Color.black : Color.black.opacity(0.3)
+        }
+    }
+    
+    private func getStatusDisplayText() -> String {
+        guard let session = timerService.currentSession else {
+            return timerService.isRunning ? "FOCUSING" : "PAUSED"
+        }
+        
+        let currentTime = Date()
+        if session.startTime > currentTime {
+            return "WAITING"
+        } else {
+            return timerService.isRunning ? "FOCUSING" : "PAUSED"
         }
     }
 }
@@ -1148,89 +1194,116 @@ struct TimerControlButtons: View {
     let onDismiss: () -> Void
     
     var body: some View {
-        VStack(spacing: 16) {
-            // 第一行：暂停/继续按钮
+        VStack(spacing: 20) {
+            // 主控制按钮 - 电纸书风格
             Button(action: {
-                if timerService.isRunning {
-                    timerService.pauseSession()
-                } else if timerService.sessionState == .paused {
-                    timerService.resumeSession()
-                } else {
-                    // 开始新的会话
+                // 检查是否在等待未来开始时间
+                if let session = timerService.currentSession, session.startTime > Date() {
+                    // 如果在等待状态，点击可以立即开始
+                    // 1. 清除自定义开始时间设置
+                    UserDefaults.standard.set(false, forKey: "enableCustomStartTime")
+                    // 2. 取消当前会话
+                    timerService.cancelSession()
+                    // 3. 重新开始一个从当前时间开始的会话
                     let sessionTitle = title.isEmpty ? "专注时间" : title
                     timerService.startSession(title: sessionTitle, tags: selectedTags)
+                } else {
+                    // 正常的暂停/继续/开始逻辑
+                    if timerService.isRunning {
+                        timerService.pauseSession()
+                    } else if timerService.sessionState == .paused {
+                        timerService.resumeSession()
+                    } else {
+                        // 开始新的会话
+                        let sessionTitle = title.isEmpty ? "专注时间" : title
+                        timerService.startSession(title: sessionTitle, tags: selectedTags)
+                    }
                 }
             }) {
-                HStack(spacing: 8) {
-                    Image(systemName: timerService.isRunning ? "pause.fill" : "play.fill")
-                        .font(.title2)
-                    Text(timerService.isRunning ? "暂停" : 
-                         (timerService.sessionState == .paused ? "继续" : "开始"))
-                        .font(.headline)
-                        .fontWeight(.medium)
+                HStack(spacing: 12) {
+                    // 图标 - 简洁的几何形状
+                    if let session = timerService.currentSession, session.startTime > Date() {
+                        // 等待状态显示立即开始图标
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 18, weight: .light))
+                    } else if timerService.isRunning {
+                        HStack(spacing: 3) {
+                            Rectangle()
+                                .fill(Color.white)
+                                .frame(width: 3, height: 16)
+                            Rectangle()
+                                .fill(Color.white)
+                                .frame(width: 3, height: 16)
+                        }
+                    } else {
+                        // 播放三角形
+                        Image(systemName: timerService.sessionState == .paused ? "play.fill" : "play.fill")
+                            .font(.system(size: 18, weight: .light))
+                    }
+                    
+                    Text(getMainButtonText())
+                        .font(.system(size: 16, weight: .light))
+                        .tracking(1.5)
+                        .textCase(.uppercase)
                 }
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(
-                    LinearGradient(
-                        colors: timerService.isRunning ? [.orange, .red] : [.green, .blue],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
+                .frame(height: 54)
+                .background(Color.black)
+                .overlay(
+                    Rectangle()
+                        .stroke(Color.black, lineWidth: 2)
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 25))
             }
+            .buttonStyle(PlainButtonStyle())
             
-            // 第二行：重置和保存按钮
-            HStack(spacing: 12) {
+            // 辅助控制按钮 - 电纸书风格
+            HStack(spacing: 16) {
                 // 重置按钮
                 Button(action: {
                     resetTimer()
                 }) {
-                    HStack(spacing: 6) {
+                    VStack(spacing: 4) {
                         Image(systemName: "arrow.clockwise")
-                            .font(.title3)
-                        Text("重置")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
+                            .font(.system(size: 16, weight: .light))
+                        Text("RESET")
+                            .font(.system(size: 10, weight: .light))
+                            .tracking(1)
+                            .textCase(.uppercase)
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 44)
-                    .background(
-                        LinearGradient(
-                            colors: [.gray, .secondary],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
+                    .frame(height: 54)
+                    .background(Color.white)
+                    .overlay(
+                        Rectangle()
+                            .stroke(Color.black, lineWidth: 1)
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 22))
                 }
+                .buttonStyle(PlainButtonStyle())
                 
                 // 保存按钮
                 Button(action: {
                     saveSession()
                 }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.title3)
-                        Text("保存")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
+                    VStack(spacing: 4) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 16, weight: .light))
+                        Text("SAVE")
+                            .font(.system(size: 10, weight: .light))
+                            .tracking(1)
+                            .textCase(.uppercase)
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(timerService.sessionState == .idle || timerService.elapsedTime < 1 ? .black.opacity(0.3) : .black)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 44)
-                    .background(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
+                    .frame(height: 54)
+                    .background(Color.white)
+                    .overlay(
+                        Rectangle()
+                            .stroke(timerService.sessionState == .idle || timerService.elapsedTime < 1 ? Color.black.opacity(0.3) : Color.black, lineWidth: 1)
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 22))
                 }
+                .buttonStyle(PlainButtonStyle())
                 .disabled(timerService.sessionState == .idle || timerService.elapsedTime < 1)
             }
         }
@@ -1308,6 +1381,18 @@ struct TimerControlButtons: View {
         
         return uniqueTitle
     }
+    
+    private func getMainButtonText() -> String {
+        if let session = timerService.currentSession, session.startTime > Date() {
+            return "START NOW"
+        } else if timerService.isRunning {
+            return "PAUSE"
+        } else if timerService.sessionState == .paused {
+            return "RESUME"
+        } else {
+            return "START"
+        }
+    }
 }
 
 // 专注信息输入组件
@@ -1321,56 +1406,246 @@ struct FocusInfoInputView: View {
     @State private var eventInput = ""
     
     var body: some View {
-        VStack(spacing: 20) {
-            // 专注标题
-            VStack(alignment: .leading, spacing: 8) {
-                Text("专注标题")
-                    .font(.headline)
-                    .foregroundColor(.primary)
+        VStack(spacing: 24) {
+            // 专注标题 - 电纸书风格
+            VStack(alignment: .leading, spacing: 12) {
+                Text("FOCUS TITLE")
+                    .font(.system(size: 12, weight: .light))
+                    .foregroundColor(.black.opacity(0.7))
+                    .tracking(1)
+                    .textCase(.uppercase)
                 
-                TextField("今天要专注什么？", text: $title)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .font(.body)
+                TextField("What to focus on today?", text: $title)
+                    .font(.system(size: 16, weight: .light))
+                    .foregroundColor(.black)
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 16)
+                    .background(Color.white)
+                    .overlay(
+                        Rectangle()
+                            .stroke(Color.black.opacity(0.3), lineWidth: 1)
+                    )
             }
             
-            // 描述
-            VStack(alignment: .leading, spacing: 8) {
-                Text("描述")
-                    .font(.headline)
-                    .foregroundColor(.primary)
+            // 描述 - 电纸书风格
+            VStack(alignment: .leading, spacing: 12) {
+                Text("DESCRIPTION")
+                    .font(.system(size: 12, weight: .light))
+                    .foregroundColor(.black.opacity(0.7))
+                    .tracking(1)
+                    .textCase(.uppercase)
                 
-                TextField("专注的具体内容或目标", text: $description, axis: .vertical)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                TextField("Specific content or goals", text: $description, axis: .vertical)
+                    .font(.system(size: 14, weight: .light))
+                    .foregroundColor(.black)
                     .lineLimit(3...6)
-                    .font(.body)
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 16)
+                    .background(Color.white)
+                    .overlay(
+                        Rectangle()
+                            .stroke(Color.black.opacity(0.3), lineWidth: 1)
+                    )
             }
             
-            // 标签系统 (#)
-            VStack(alignment: .leading, spacing: 8) {
-                Text("标签 #")
-                    .font(.headline)
-                    .foregroundColor(.primary)
+            // 标签系统 - 电纸书风格
+            VStack(alignment: .leading, spacing: 12) {
+                Text("TAGS #")
+                    .font(.system(size: 12, weight: .light))
+                    .foregroundColor(.black.opacity(0.7))
+                    .tracking(1)
+                    .textCase(.uppercase)
                 
-                TagInputField(
+                EBookTagInputField(
                     input: $tagInput,
                     selectedTags: $selectedTags,
-                    placeholder: "添加标签，如 #工作 #学习"
+                    placeholder: "Add tags like #work #study"
                 )
             }
             
-            // 事件系统 (@)
-            VStack(alignment: .leading, spacing: 8) {
-                Text("关联事件 @")
-                    .font(.headline)
-                    .foregroundColor(.primary)
+            // 事件系统 - 电纸书风格
+            VStack(alignment: .leading, spacing: 12) {
+                Text("RELATED EVENTS @")
+                    .font(.system(size: 12, weight: .light))
+                    .foregroundColor(.black.opacity(0.7))
+                    .tracking(1)
+                    .textCase(.uppercase)
                 
-                EventInputField(
+                EBookEventInputField(
                     input: $eventInput,
                     selectedEvents: $relatedEvents,
-                    placeholder: "关联事件，如 @会议 @项目"
+                    placeholder: "Related events like @meeting @project"
                 )
             }
         }
+    }
+}
+
+// 电纸书风格标签输入组件
+struct EBookTagInputField: View {
+    @Binding var input: String
+    @Binding var selectedTags: [String]
+    let placeholder: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                TextField(placeholder, text: $input)
+                    .font(.system(size: 14, weight: .light))
+                    .foregroundColor(.black)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 16)
+                    .background(Color.white)
+                    .overlay(
+                        Rectangle()
+                            .stroke(Color.black.opacity(0.3), lineWidth: 1)
+                    )
+                    .onSubmit {
+                        addTag()
+                    }
+                
+                Button("ADD", action: addTag)
+                    .font(.system(size: 10, weight: .light))
+                    .tracking(1)
+                    .textCase(.uppercase)
+                    .foregroundColor(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .black.opacity(0.3) : .black)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 16)
+                    .background(Color.white)
+                    .overlay(
+                        Rectangle()
+                            .stroke(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.black.opacity(0.3) : Color.black, lineWidth: 1)
+                    )
+                    .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            
+            // 已选择的标签 - 电纸书风格
+            if !selectedTags.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(selectedTags, id: \.self) { tag in
+                        HStack {
+                            Text("#\(tag)")
+                                .font(.system(size: 12, weight: .light))
+                                .foregroundColor(.black)
+                                .tracking(0.5)
+                            
+                            Spacer()
+                            
+                            Button(action: { removeTag(tag) }) {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 10, weight: .light))
+                                    .foregroundColor(.black.opacity(0.6))
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.white)
+                        .overlay(
+                            Rectangle()
+                                .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                        )
+                    }
+                }
+            }
+        }
+    }
+    
+    private func addTag() {
+        let tag = input.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "#", with: "")
+        
+        if !tag.isEmpty && !selectedTags.contains(tag) {
+            selectedTags.append(tag)
+            input = ""
+        }
+    }
+    
+    private func removeTag(_ tag: String) {
+        selectedTags.removeAll { $0 == tag }
+    }
+}
+
+// 电纸书风格事件输入组件
+struct EBookEventInputField: View {
+    @Binding var input: String
+    @Binding var selectedEvents: [String]
+    let placeholder: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                TextField(placeholder, text: $input)
+                    .font(.system(size: 14, weight: .light))
+                    .foregroundColor(.black)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 16)
+                    .background(Color.white)
+                    .overlay(
+                        Rectangle()
+                            .stroke(Color.black.opacity(0.3), lineWidth: 1)
+                    )
+                    .onSubmit {
+                        addEvent()
+                    }
+                
+                Button("ADD", action: addEvent)
+                    .font(.system(size: 10, weight: .light))
+                    .tracking(1)
+                    .textCase(.uppercase)
+                    .foregroundColor(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .black.opacity(0.3) : .black)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 16)
+                    .background(Color.white)
+                    .overlay(
+                        Rectangle()
+                            .stroke(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.black.opacity(0.3) : Color.black, lineWidth: 1)
+                    )
+                    .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            
+            // 已选择的事件 - 电纸书风格
+            if !selectedEvents.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(selectedEvents, id: \.self) { event in
+                        HStack {
+                            Text("@\(event)")
+                                .font(.system(size: 12, weight: .light))
+                                .foregroundColor(.black)
+                                .tracking(0.5)
+                            
+                            Spacer()
+                            
+                            Button(action: { removeEvent(event) }) {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 10, weight: .light))
+                                    .foregroundColor(.black.opacity(0.6))
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.white)
+                        .overlay(
+                            Rectangle()
+                                .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                        )
+                    }
+                }
+            }
+        }
+    }
+    
+    private func addEvent() {
+        let event = input.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "@", with: "")
+        
+        if !event.isEmpty && !selectedEvents.contains(event) {
+            selectedEvents.append(event)
+            input = ""
+        }
+    }
+    
+    private func removeEvent(_ event: String) {
+        selectedEvents.removeAll { $0 == event }
     }
 }
 
@@ -1595,8 +1870,11 @@ struct TimerSettingsView: View {
     @Binding var circleTimeInterval: TimeInterval
     @Binding var showHourFormat: Bool
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var timerService: TimerService
     @State private var showingCustomInput = false
     @State private var customMinutes = ""
+    @State private var selectedStartTime = Date()
+    @State private var enableCustomStartTime = false
     
     // 预设的圆圈时间选项（分钟）
     private let timeOptions: [TimeInterval] = [
@@ -1652,6 +1930,68 @@ struct TimerSettingsView: View {
                     }
                 }
                 
+                Section("计时开始时间") {
+                    Toggle("自定义开始时间", isOn: $enableCustomStartTime)
+                        .onChange(of: enableCustomStartTime) { oldValue, newValue in
+                            if newValue {
+                                selectedStartTime = Date()
+                            }
+                            // 实时保存设置
+                            UserDefaults.standard.set(newValue, forKey: "enableCustomStartTime")
+                            
+                            // 如果计时器正在运行且关闭了自定义开始时间，更新为当前时间
+                            if !newValue && (timerService.sessionState == .running || timerService.sessionState == .paused) {
+                                timerService.updateSessionStartTime()
+                            }
+                        }
+                    
+                    if enableCustomStartTime {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("选择开始时间")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            DatePicker(
+                                "开始时间",
+                                selection: $selectedStartTime,
+                                displayedComponents: [.hourAndMinute]
+                            )
+                            .datePickerStyle(.wheel)
+                            .labelsHidden()
+                            .onChange(of: selectedStartTime) { oldValue, newValue in
+                                // 实时保存时间设置
+                                UserDefaults.standard.set(newValue, forKey: "customTimerStartTime")
+                                
+                                // 如果计时器正在运行且启用了自定义开始时间，立即更新
+                                if enableCustomStartTime && (timerService.sessionState == .running || timerService.sessionState == .paused) {
+                                    timerService.updateSessionStartTime()
+                                }
+                            }
+                            
+                            HStack {
+                                Image(systemName: "info.circle")
+                                    .foregroundColor(.blue)
+                                    .font(.caption)
+                                
+                                Text("设定的开始时间将作为计时器的起始基准时间")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.top, 8)
+                        }
+                        .padding(.vertical, 8)
+                    } else {
+                        HStack {
+                            Image(systemName: "clock")
+                                .foregroundColor(.secondary)
+                            Text("使用当前时间作为开始时间")
+                                .foregroundColor(.secondary)
+                        }
+                        .font(.caption)
+                        .padding(.vertical, 8)
+                    }
+                }
+                
                 Section("显示格式") {
                     Toggle("显示小时格式", isOn: $showHourFormat)
                     
@@ -1700,6 +2040,15 @@ struct TimerSettingsView: View {
                 Button("取消", role: .cancel) { }
             } message: {
                 Text("请输入每一圈的时间（1-480分钟）")
+            }
+            .onAppear {
+                // 每次打开都重新加载设置
+                enableCustomStartTime = UserDefaults.standard.bool(forKey: "enableCustomStartTime")
+                if let savedStartTime = UserDefaults.standard.object(forKey: "customTimerStartTime") as? Date {
+                    selectedStartTime = savedStartTime
+                } else {
+                    selectedStartTime = Date()
+                }
             }
         }
     }

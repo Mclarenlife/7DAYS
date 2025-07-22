@@ -65,19 +65,13 @@ struct FlowResult {
 
 struct TimelineView: View {
     @Binding var selectedDate: Date
-    @Binding var isManageMode: Bool
-    @Binding var selectedSessions: Set<UUID>
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var timerService: TimerService
     
     var body: some View {
         // 直接显示时间线内容，日期栏现在在 ContentView 中管理
-        TimelineContent(
-            selectedDate: selectedDate,
-            isManageMode: isManageMode,
-            selectedSessions: $selectedSessions
-        )
-            .padding(.top, 100) // 为悬浮日期栏留出更多空间
+        TimelineContent(selectedDate: selectedDate)
+            .padding(.top, 90) // 为悬浮日期栏留出合适空间，与日期栏保持美观间距，再增加5pt
     }
 }
 
@@ -192,8 +186,6 @@ struct TodayFocusStats: View {
 
 struct TimelineContent: View {
     let selectedDate: Date
-    let isManageMode: Bool
-    @Binding var selectedSessions: Set<UUID>
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var timerService: TimerService
     
@@ -208,22 +200,11 @@ struct TimelineContent: View {
             ScrollView {
                 LazyVStack(spacing: 12) {
                     ForEach(sessionsForDate) { session in
-                        FocusSessionCard(
-                            session: session,
-                            isManageMode: isManageMode,
-                            isSelected: selectedSessions.contains(session.id),
-                            onSelectionChanged: { isSelected in
-                                if isSelected {
-                                    selectedSessions.insert(session.id)
-                                } else {
-                                    selectedSessions.remove(session.id)
-                                }
-                            }
-                        )
+                        FocusSessionCard(session: session)
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                .padding(.vertical, 8) // 减少垂直padding，让内容更靠近日期栏
             }
         }
     }
@@ -260,12 +241,11 @@ struct EmptyTimelineView: View {
 
 struct FocusSessionCard: View {
     let session: FocusSession
-    let isManageMode: Bool
-    let isSelected: Bool
-    let onSelectionChanged: (Bool) -> Void
     @EnvironmentObject var dataManager: DataManager
     @State private var isExpanded = false
     @State private var isAnimating = false
+    @State private var showingEditSheet = false
+    @State private var showingDeleteAlert = false
     
     private var relatedTask: Task? {
         guard let taskId = session.relatedTask else { return nil }
@@ -276,21 +256,16 @@ struct FocusSessionCard: View {
         VStack(alignment: .leading, spacing: 0) {
             // 主要内容行
             Button(action: {
-                if isManageMode {
-                    // 在管理模式下，切换选择状态
-                    onSelectionChanged(!isSelected)
-                } else {
-                    // 在普通模式下，切换展开状态
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        isExpanded.toggle()
-                        isAnimating = true
-                    }
-                    
-                    // 在动画完成后清除模糊状态
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            isAnimating = false
-                        }
+                // 切换展开状态
+                withAnimation(.easeOut(duration: 0.3)) {
+                    isExpanded.toggle()
+                    isAnimating = true
+                }
+                
+                // 在动画完成后清除模糊状态
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        isAnimating = false
                     }
                 }
             }) {
@@ -299,13 +274,6 @@ struct FocusSessionCard: View {
                     VStack(alignment: .leading, spacing: 12) {
                         // 第一行：时间信息 + 标题 + 用时
                         HStack(alignment: .center, spacing: 12) {
-                            // 选择指示器（仅在管理模式下显示）
-                            if isManageMode {
-                                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                    .foregroundColor(isSelected ? .blue : .gray)
-                                    .font(.title2)
-                            }
-                            
                             // 左侧：时间信息
                             VStack(spacing: 6) {
                                 Text(session.formattedStartTime)
@@ -439,13 +407,6 @@ struct FocusSessionCard: View {
                 } else {
                     // 收起状态：保持原有的水平布局
                     HStack(alignment: .center, spacing: 12) {
-                        // 选择指示器（仅在管理模式下显示）
-                        if isManageMode {
-                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                .foregroundColor(isSelected ? .blue : .gray)
-                                .font(.title2)
-                        }
-                        
                         // 左侧：时间信息（开始时间 + 圆形分隔 + 结束时间）
                         VStack(spacing: 6) {
                             Text(session.formattedStartTime)
@@ -610,6 +571,159 @@ struct FocusSessionCard: View {
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .contextMenu {
+            // 编辑按钮
+            Button(action: {
+                showingEditSheet = true
+            }) {
+                Label("编辑", systemImage: "pencil")
+            }
+            
+            // 删除按钮
+            Button(role: .destructive, action: {
+                showingDeleteAlert = true
+            }) {
+                Label("删除", systemImage: "trash")
+            }
+        } preview: {
+            // 预览视图 - 显示专注记录的预览
+            FocusSessionPreview(session: session)
+        }
+        .sheet(isPresented: $showingEditSheet) {
+            FocusSessionEditSheet(session: session)
+                .environmentObject(dataManager)
+        }
+        .alert("删除专注记录", isPresented: $showingDeleteAlert) {
+            Button("取消", role: .cancel) { }
+            Button("删除", role: .destructive) {
+                dataManager.deleteFocusSession(session)
+            }
+        } message: {
+            Text("确定要删除这条专注记录吗？此操作无法撤销。")
+        }
+    }
+}
+
+// 专注记录预览组件（用于上下文菜单）
+struct FocusSessionPreview: View {
+    let session: FocusSession
+    @EnvironmentObject var dataManager: DataManager
+    
+    private var relatedTask: Task? {
+        guard let taskId = session.relatedTask else { return nil }
+        return dataManager.tasks.first { $0.id == taskId }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // 标题和时间
+            HStack(alignment: .center, spacing: 12) {
+                // 时间信息
+                VStack(spacing: 4) {
+                    Text(session.formattedStartTime)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                    
+                    Circle()
+                        .fill(.orange)
+                        .frame(width: 6, height: 6)
+                    
+                    Text(session.formattedEndTime)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                }
+                .frame(width: 40)
+                
+                // 专注标题
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(session.title)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.leading)
+                    
+                    if !session.notes.isEmpty {
+                        Text(session.notes)
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                    }
+                }
+                
+                Spacer()
+                
+                // 用时
+                Text(session.formattedDuration)
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundColor(.orange)
+            }
+            
+            // 标签和事件
+            if !session.tags.isEmpty || !session.relatedEvents.isEmpty || relatedTask != nil {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        // 关联事件
+                        ForEach(session.relatedEvents, id: \.self) { event in
+                            HStack(spacing: 3) {
+                                Text("@")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.green)
+                                Text(event)
+                                    .font(.caption2)
+                                    .foregroundColor(.green)
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                        }
+                        
+                        // 关联任务
+                        if let task = relatedTask {
+                            HStack(spacing: 3) {
+                                Text("@")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.purple)
+                                Text(task.title)
+                                    .font(.caption2)
+                                    .foregroundColor(.purple)
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.purple.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                        }
+                        
+                        // 标签
+                        ForEach(session.tags, id: \.self) { tag in
+                            HStack(spacing: 2) {
+                                Text("#")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.blue)
+                                Text(tag)
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.blue.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                        }
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: 280) // 限制预览宽度
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -643,12 +757,313 @@ struct DatePickerSheet: View {
     }
 }
 
+// 专注记录编辑Sheet
+struct FocusSessionEditSheet: View {
+    let session: FocusSession
+    @EnvironmentObject var dataManager: DataManager
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var editedTitle: String
+    @State private var editedDescription: String
+    @State private var editedTags: [String]
+    @State private var editedEvents: [String]
+    @State private var tagInput = ""
+    @State private var eventInput = ""
+    @State private var showingDeleteAlert = false
+    
+    init(session: FocusSession) {
+        self.session = session
+        self._editedTitle = State(initialValue: session.title)
+        self._editedDescription = State(initialValue: session.notes)
+        self._editedTags = State(initialValue: session.tags)
+        self._editedEvents = State(initialValue: session.relatedEvents)
+    }
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // 时间信息（只读）
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("专注时间")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("开始时间")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text(session.formattedStartTime)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                            }
+                            
+                            Spacer()
+                            
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text("持续时长")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text(session.formattedDuration)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                        .padding(16)
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    
+                    // 专注标题
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("专注标题")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        TextField("专注标题", text: $editedTitle)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .font(.body)
+                    }
+                    
+                    // 专注描述
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("专注描述")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        TextField("专注描述", text: $editedDescription, axis: .vertical)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .lineLimit(3...6)
+                            .font(.body)
+                    }
+                    
+                    // 标签编辑
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("标签 #")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        EditableTagField(
+                            input: $tagInput,
+                            selectedTags: $editedTags,
+                            placeholder: "添加标签，如 #工作 #学习"
+                        )
+                    }
+                    
+                    // 事件编辑
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("关联事件 @")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        EditableEventField(
+                            input: $eventInput,
+                            selectedEvents: $editedEvents,
+                            placeholder: "关联事件，如 @会议 @项目"
+                        )
+                    }
+                    
+                    // 删除按钮
+                    Button(action: {
+                        showingDeleteAlert = true
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "trash")
+                                .font(.subheadline)
+                            Text("删除此专注记录")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(.red)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .padding(.top, 20)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
+            }
+            .navigationTitle("编辑专注记录")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("取消") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("保存") {
+                        saveChanges()
+                    }
+                    .disabled(editedTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .alert("删除专注记录", isPresented: $showingDeleteAlert) {
+                Button("取消", role: .cancel) { }
+                Button("删除", role: .destructive) {
+                    dataManager.deleteFocusSession(session)
+                    dismiss()
+                }
+            } message: {
+                Text("确定要删除这条专注记录吗？此操作无法撤销。")
+            }
+        }
+    }
+    
+    private func saveChanges() {
+        // 创建更新后的专注记录
+        let updatedSession = FocusSession(
+            id: session.id,
+            title: editedTitle.trimmingCharacters(in: .whitespacesAndNewlines),
+            startTime: session.startTime,
+            duration: session.duration,
+            tags: editedTags,
+            relatedEvents: editedEvents,
+            notes: editedDescription.trimmingCharacters(in: .whitespacesAndNewlines),
+            relatedTask: session.relatedTask
+        )
+        
+        // 更新数据
+        dataManager.updateFocusSession(updatedSession)
+        
+        // 关闭弹窗
+        dismiss()
+    }
+}
+
+// 可编辑标签输入组件
+struct EditableTagField: View {
+    @Binding var input: String
+    @Binding var selectedTags: [String]
+    let placeholder: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                TextField(placeholder, text: $input)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .onSubmit {
+                        addTag()
+                    }
+                
+                Button("添加", action: addTag)
+                    .buttonStyle(.bordered)
+                    .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            
+            // 已选择的标签
+            if !selectedTags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(selectedTags, id: \.self) { tag in
+                            HStack(spacing: 4) {
+                                Text("#\(tag)")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                                
+                                Button(action: { removeTag(tag) }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.blue.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+                    .padding(.horizontal, 1)
+                }
+            }
+        }
+    }
+    
+    private func addTag() {
+        let tag = input.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "#", with: "")
+        
+        if !tag.isEmpty && !selectedTags.contains(tag) {
+            selectedTags.append(tag)
+            input = ""
+        }
+    }
+    
+    private func removeTag(_ tag: String) {
+        selectedTags.removeAll { $0 == tag }
+    }
+}
+
+// 可编辑事件输入组件
+struct EditableEventField: View {
+    @Binding var input: String
+    @Binding var selectedEvents: [String]
+    let placeholder: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                TextField(placeholder, text: $input)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .onSubmit {
+                        addEvent()
+                    }
+                
+                Button("添加", action: addEvent)
+                    .buttonStyle(.bordered)
+                    .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            
+            // 已选择的事件
+            if !selectedEvents.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(selectedEvents, id: \.self) { event in
+                            HStack(spacing: 4) {
+                                Text("@\(event)")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                                
+                                Button(action: { removeEvent(event) }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.green.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+                    .padding(.horizontal, 1)
+                }
+            }
+        }
+    }
+    
+    private func addEvent() {
+        let event = input.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "@", with: "")
+        
+        if !event.isEmpty && !selectedEvents.contains(event) {
+            selectedEvents.append(event)
+            input = ""
+        }
+    }
+    
+    private func removeEvent(_ event: String) {
+        selectedEvents.removeAll { $0 == event }
+    }
+}
+
 #Preview {
-    TimelineView(
-        selectedDate: .constant(Date()),
-        isManageMode: .constant(false),
-        selectedSessions: .constant(Set<UUID>())
-    )
+    TimelineView(selectedDate: .constant(Date()))
         .environmentObject(DataManager.shared)
         .environmentObject(TimerService())
 }
