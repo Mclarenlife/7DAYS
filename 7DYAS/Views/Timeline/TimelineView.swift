@@ -65,12 +65,18 @@ struct FlowResult {
 
 struct TimelineView: View {
     @Binding var selectedDate: Date
+    @Binding var isManageMode: Bool
+    @Binding var selectedSessions: Set<UUID>
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var timerService: TimerService
     
     var body: some View {
         // 直接显示时间线内容，日期栏现在在 ContentView 中管理
-        TimelineContent(selectedDate: selectedDate)
+        TimelineContent(
+            selectedDate: selectedDate,
+            isManageMode: isManageMode,
+            selectedSessions: $selectedSessions
+        )
             .padding(.top, 100) // 为悬浮日期栏留出更多空间
     }
 }
@@ -81,7 +87,14 @@ struct TimelineHeader: View {
     
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MM月dd日 EEEE"
+        formatter.dateFormat = "MM月dd日"
+        return formatter
+    }
+    
+    private var weekdayFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        formatter.locale = Locale(identifier: "zh_CN")
         return formatter
     }
     
@@ -90,15 +103,15 @@ struct TimelineHeader: View {
         HStack {
             // 日期选择按钮
             Button(action: { showingDatePicker = true }) {
-                HStack(spacing: 8) {
+                VStack(spacing: 2) {
                     Text(dateFormatter.string(from: selectedDate))
                         .font(.headline)
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
                     
-                    Image(systemName: "calendar")
-                        .font(.subheadline)
-                        .foregroundColor(.blue)
+                    Text(weekdayFormatter.string(from: selectedDate))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
             
@@ -132,7 +145,7 @@ struct TodayFocusStats: View {
     }
     
     var body: some View {
-        VStack(alignment: .trailing, spacing: 4) {
+        VStack(alignment: .center, spacing: 4) {
             Text("今日专注")
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -158,19 +171,29 @@ struct TodayFocusStats: View {
     }
     
     private func formatTime(_ timeInterval: TimeInterval) -> String {
-        let hours = Int(timeInterval) / 3600
-        let minutes = Int(timeInterval) % 3600 / 60
+        let totalSeconds = Int(timeInterval)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
         
-        if hours > 0 {
-            return "\(hours)h\(minutes)m"
+        if totalSeconds < 60 {
+            return "\(seconds)秒"
+        } else if hours > 0 {
+            if minutes > 0 {
+                return "\(hours)小时\(minutes)分钟"
+            } else {
+                return "\(hours)小时"
+            }
         } else {
-            return "\(minutes)m"
+            return "\(minutes)分钟"
         }
     }
 }
 
 struct TimelineContent: View {
     let selectedDate: Date
+    let isManageMode: Bool
+    @Binding var selectedSessions: Set<UUID>
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var timerService: TimerService
     
@@ -185,7 +208,18 @@ struct TimelineContent: View {
             ScrollView {
                 LazyVStack(spacing: 12) {
                     ForEach(sessionsForDate) { session in
-                        FocusSessionCard(session: session)
+                        FocusSessionCard(
+                            session: session,
+                            isManageMode: isManageMode,
+                            isSelected: selectedSessions.contains(session.id),
+                            onSelectionChanged: { isSelected in
+                                if isSelected {
+                                    selectedSessions.insert(session.id)
+                                } else {
+                                    selectedSessions.remove(session.id)
+                                }
+                            }
+                        )
                     }
                 }
                 .padding(.horizontal, 20)
@@ -226,6 +260,9 @@ struct EmptyTimelineView: View {
 
 struct FocusSessionCard: View {
     let session: FocusSession
+    let isManageMode: Bool
+    let isSelected: Bool
+    let onSelectionChanged: (Bool) -> Void
     @EnvironmentObject var dataManager: DataManager
     @State private var isExpanded = false
     @State private var isAnimating = false
@@ -239,16 +276,21 @@ struct FocusSessionCard: View {
         VStack(alignment: .leading, spacing: 0) {
             // 主要内容行
             Button(action: {
-                // 模糊和展开同时进行
-                withAnimation(.easeOut(duration: 0.3)) {
-                    isExpanded.toggle()
-                    isAnimating = true
-                }
-                
-                // 在动画完成后清除模糊状态
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        isAnimating = false
+                if isManageMode {
+                    // 在管理模式下，切换选择状态
+                    onSelectionChanged(!isSelected)
+                } else {
+                    // 在普通模式下，切换展开状态
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        isExpanded.toggle()
+                        isAnimating = true
+                    }
+                    
+                    // 在动画完成后清除模糊状态
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            isAnimating = false
+                        }
                     }
                 }
             }) {
@@ -257,6 +299,13 @@ struct FocusSessionCard: View {
                     VStack(alignment: .leading, spacing: 12) {
                         // 第一行：时间信息 + 标题 + 用时
                         HStack(alignment: .center, spacing: 12) {
+                            // 选择指示器（仅在管理模式下显示）
+                            if isManageMode {
+                                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                    .foregroundColor(isSelected ? .blue : .gray)
+                                    .font(.title2)
+                            }
+                            
                             // 左侧：时间信息
                             VStack(spacing: 6) {
                                 Text(session.formattedStartTime)
@@ -390,6 +439,13 @@ struct FocusSessionCard: View {
                 } else {
                     // 收起状态：保持原有的水平布局
                     HStack(alignment: .center, spacing: 12) {
+                        // 选择指示器（仅在管理模式下显示）
+                        if isManageMode {
+                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                .foregroundColor(isSelected ? .blue : .gray)
+                                .font(.title2)
+                        }
+                        
                         // 左侧：时间信息（开始时间 + 圆形分隔 + 结束时间）
                         VStack(spacing: 6) {
                             Text(session.formattedStartTime)
@@ -588,7 +644,11 @@ struct DatePickerSheet: View {
 }
 
 #Preview {
-    TimelineView(selectedDate: .constant(Date()))
+    TimelineView(
+        selectedDate: .constant(Date()),
+        isManageMode: .constant(false),
+        selectedSessions: .constant(Set<UUID>())
+    )
         .environmentObject(DataManager.shared)
         .environmentObject(TimerService())
 }

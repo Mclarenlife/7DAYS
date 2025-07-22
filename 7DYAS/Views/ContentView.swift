@@ -19,6 +19,8 @@ struct ContentView: View {
     // 时间线日期栏状态
     @State private var timelineSelectedDate = Date()
     @State private var showingTimelineDatePicker = false
+    @State private var isTimelineManageMode = false // 时间线管理模式
+    @State private var selectedSessions: Set<UUID> = [] // 选中的专注会话
     
     // 计划视图状态
     @State private var planningSelectedDate = Date()
@@ -81,7 +83,11 @@ struct ContentView: View {
                         ScrollView {
                             LazyVStack {
                                 // 内容区域
-                                TimelineView(selectedDate: $timelineSelectedDate)
+                                TimelineView(
+                                    selectedDate: $timelineSelectedDate,
+                                    isManageMode: $isTimelineManageMode,
+                                    selectedSessions: $selectedSessions
+                                )
                             }
                         }
                         .tag(MainTab.timeline)
@@ -114,7 +120,9 @@ struct ContentView: View {
                 BlurAnimationWrapper(isVisible: selectedTab == .timeline) {
                     TimelineFloatingDateBar(
                         selectedDate: $timelineSelectedDate,
-                        showingDatePicker: $showingTimelineDatePicker
+                        showingDatePicker: $showingTimelineDatePicker,
+                        isManageMode: $isTimelineManageMode,
+                        selectedSessions: $selectedSessions
                     )
                 }
                 
@@ -154,7 +162,7 @@ struct ContentView: View {
                     )
                     .environmentObject(timerService)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .padding(.bottom, 10)
+                    .padding(.bottom, 30) // 与FloatingActionBar保持一致的底部边距
                 }
                 
                 FloatingActionBar(
@@ -166,6 +174,7 @@ struct ContentView: View {
                 .padding(.bottom, 30)
             }
         }
+        .background(Color(.systemBackground)) // 确保背景色一致
         .ignoresSafeArea(.container, edges: .bottom)
         .environmentObject(dataManager)
         .environmentObject(timerService)
@@ -643,11 +652,22 @@ struct PlanningDatePickerSheet: View {
 struct TimelineFloatingDateBar: View {
     @Binding var selectedDate: Date
     @Binding var showingDatePicker: Bool
+    @Binding var isManageMode: Bool
+    @Binding var selectedSessions: Set<UUID>
     @EnvironmentObject var timerService: TimerService
+    @EnvironmentObject var dataManager: DataManager
+    @State private var showingDeleteAlert = false
     
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MM月dd日 EEEE"
+        formatter.dateFormat = "MM月dd日"
+        return formatter
+    }
+    
+    private var weekdayFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        formatter.locale = Locale(identifier: "zh_CN")
         return formatter
     }
     
@@ -655,15 +675,50 @@ struct TimelineFloatingDateBar: View {
         HStack {
             // 日期选择按钮
             Button(action: { showingDatePicker = true }) {
-                HStack(spacing: 8) {
+                VStack(spacing: 2) {
                     Text(dateFormatter.string(from: selectedDate))
                         .font(.headline)
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
                     
-                    Image(systemName: "calendar")
-                        .font(.subheadline)
-                        .foregroundColor(.blue)
+                    Text(weekdayFormatter.string(from: selectedDate))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // 管理按钮
+            Button(action: {
+                if isManageMode {
+                    // 退出管理模式，清空选择
+                    selectedSessions.removeAll()
+                }
+                isManageMode.toggle()
+            }) {
+                Text(isManageMode ? "完成" : "管理")
+                    .font(.caption)
+                    .foregroundColor(isManageMode ? .red : .blue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background((isManageMode ? Color.red : Color.blue).opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            
+            // 删除按钮（仅在管理模式下显示）
+            if isManageMode && !selectedSessions.isEmpty {
+                Button(action: {
+                    showingDeleteAlert = true
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "trash")
+                        Text("删除")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.red.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
             }
             
@@ -681,6 +736,22 @@ struct TimelineFloatingDateBar: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal, 30) // 左右留边距
         .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 2) // 添加阴影增强悬浮效果
+        .alert("删除专注记录", isPresented: $showingDeleteAlert) {
+            Button("取消", role: .cancel) { }
+            Button("删除", role: .destructive) {
+                // 删除选中的专注记录
+                for sessionId in selectedSessions {
+                    if let session = dataManager.focusSessions.first(where: { $0.id == sessionId }) {
+                        dataManager.deleteFocusSession(session)
+                    }
+                }
+                selectedSessions.removeAll()
+                // 退出管理模式
+                isManageMode = false
+            }
+        } message: {
+            Text("确定要删除选中的\(selectedSessions.count)条专注记录吗？此操作无法撤销。")
+        }
     }
 }
 
@@ -697,21 +768,15 @@ struct TimelineFloatingFocusStats: View {
     }
     
     var body: some View {
-        VStack(alignment: .trailing, spacing: 4) {
-            Text("今日专注")
+        VStack(alignment: .center, spacing: 4) {
+            Text("专注\(sessionCount)次")
                 .font(.caption)
                 .foregroundColor(.secondary)
             
-            HStack(spacing: 4) {
-                Text(formatTime(totalFocusTime))
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.orange)
-                
-                Text("(\(sessionCount)次)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+            Text(formatTime(totalFocusTime))
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(.orange)
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
@@ -723,13 +788,21 @@ struct TimelineFloatingFocusStats: View {
     }
     
     private func formatTime(_ timeInterval: TimeInterval) -> String {
-        let hours = Int(timeInterval) / 3600
-        let minutes = Int(timeInterval) % 3600 / 60
+        let totalSeconds = Int(timeInterval)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
         
-        if hours > 0 {
-            return "\(hours)h\(minutes)m"
+        if totalSeconds < 60 {
+            return "\(seconds)秒"
+        } else if hours > 0 {
+            if minutes > 0 {
+                return "\(hours)小时\(minutes)分钟"
+            } else {
+                return "\(hours)小时"
+            }
         } else {
-            return "\(minutes)m"
+            return "\(minutes)分钟"
         }
     }
 }
@@ -781,7 +854,7 @@ struct BottomFocusSheet: View {
     @State private var isAnimatingOut = false // 新增：控制模糊消失动画
     
     private let minHeight: CGFloat = 500
-    private let maxHeight: CGFloat = UIScreen.main.bounds.height * 0.8
+    private let maxHeight: CGFloat = UIScreen.main.bounds.height * 0.95
     
     var body: some View {
         ZStack {
@@ -866,14 +939,15 @@ struct BottomFocusSheet: View {
                                 )
                             }
                             .padding(.horizontal, 20)
-                            .padding(.bottom, 40)
+                            .padding(.bottom, 0) // 移除底部padding，让内容延伸到底部
                         }
                     }
-                    .frame(maxHeight: maxHeight)
                     .background(
                         RoundedRectangle(cornerRadius: 20)
-                            .fill(.ultraThickMaterial)
+                            .fill(Color(.systemBackground))
+                            .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: -5)
                     )
+                    .clipShape(RoundedRectangle(cornerRadius: 20)) // 确保内容不溢出圆角边界
                     .blur(radius: isAnimatingOut ? 12 : 0) // 模糊效果
                     .opacity(isAnimatingOut ? 0 : 1) // 透明度动画
                     .scaleEffect(isAnimatingOut ? 0.9 : 1) // 缩放效果
@@ -1491,9 +1565,10 @@ struct BottomTimerBar: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: -2)
+                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
         )
         .padding(.horizontal, 30)
+        .clipped() // 防止背景延伸到边界之外
         .onTapGesture {
             onTap()
         }
