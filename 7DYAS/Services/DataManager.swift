@@ -255,4 +255,9 @@ class DataManager: ObservableObject {
     func getTodayCheckInsCount() -> Int {
         return checkIns.filter { $0.isActive }.count
     }
+    
+    // MARK: - Total Statistics
+    func getTotalFocusTime() -> TimeInterval {
+        return focusSessions.reduce(0) { $0 + $1.duration }
+    }
 }

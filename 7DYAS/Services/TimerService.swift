@@ -207,7 +207,7 @@ class TimerService: ObservableObject {
         
         return dataManager.focusSessions.filter { session in
             session.startTime >= startOfDay && session.startTime < endOfDay
-        }
+        }.sorted { $0.startTime < $1.startTime } // 按开始时间正序排列，早的在前
     }
     
     // MARK: - Time Helpers

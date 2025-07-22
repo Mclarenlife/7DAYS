@@ -188,6 +188,7 @@ struct TimelineContent: View {
     let selectedDate: Date
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var timerService: TimerService
+    @State private var lastSessionCount = 0
     
     private var sessionsForDate: [FocusSession] {
         timerService.getSessionsForDate(selectedDate)
@@ -197,14 +198,41 @@ struct TimelineContent: View {
         if sessionsForDate.isEmpty {
             EmptyTimelineView()
         } else {
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    ForEach(sessionsForDate) { session in
-                        FocusSessionCard(session: session)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(sessionsForDate) { session in
+                            FocusSessionCard(session: session)
+                                .id(session.id) // 为每个卡片添加ID以支持滚动定位
+                        }
+                        
+                        // 底部统计信息区域
+                        TimelineBottomStats()
+                            .id("bottom_spacer")
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8) // 减少垂直padding，让内容更靠近日期栏
+                }
+                .onChange(of: dataManager.focusSessions) { oldSessions, newSessions in
+                    // 当专注会话数据发生任何变化时，检查今天的数据
+                    let todaySessions = timerService.getSessionsForDate(selectedDate)
+                    if todaySessions.count > lastSessionCount {
+                        lastSessionCount = todaySessions.count
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation(.easeInOut(duration: 0.5)) {
+                                proxy.scrollTo("bottom_spacer", anchor: .bottom)
+                            }
+                        }
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8) // 减少垂直padding，让内容更靠近日期栏
+                .onChange(of: selectedDate) { oldDate, newDate in
+                    // 当切换日期时，只更新计数，不自动滚动
+                    lastSessionCount = sessionsForDate.count
+                }
+                .onAppear {
+                    // 视图出现时只初始化计数，不自动滚动
+                    lastSessionCount = sessionsForDate.count
+                }
             }
         }
     }
@@ -1059,6 +1087,53 @@ struct EditableEventField: View {
     
     private func removeEvent(_ event: String) {
         selectedEvents.removeAll { $0 == event }
+    }
+}
+
+// 时间线底部统计信息组件
+struct TimelineBottomStats: View {
+    @EnvironmentObject var dataManager: DataManager
+    
+    private var totalFocusTime: TimeInterval {
+        dataManager.getTotalFocusTime()
+    }
+    
+    private var formattedTotalTime: String {
+        let totalSeconds = Int(totalFocusTime)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        
+        if hours > 0 {
+            return "至今共专注\(hours)时\(minutes)分\(seconds)秒"
+        } else if minutes > 0 {
+            return "至今共专注\(minutes)分\(seconds)秒"
+        } else {
+            return "至今共专注\(seconds)秒"
+        }
+    }
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            // 统计信息
+            VStack(spacing: 8) {
+                Image(systemName: "clock.badge.checkmark")
+                    .font(.title2)
+                    .foregroundColor(.secondary)
+                
+                Text(formattedTotalTime)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            // 底部留白
+            Color.clear
+                .frame(height: 60)
+        }
+        .frame(minHeight: 180) // 增加底部区域高度
+        .padding(.top, 30) // 与最后一个专注卡片保持距离
     }
 }
 

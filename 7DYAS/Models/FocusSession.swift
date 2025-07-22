@@ -8,7 +8,7 @@
 import Foundation
 import SwiftUI
 
-struct FocusSession: Identifiable, Codable {
+struct FocusSession: Identifiable, Codable, Equatable {
     var id = UUID()
     var title: String
     var startTime: Date
@@ -72,6 +72,19 @@ struct FocusSession: Identifiable, Codable {
         self.relatedEvents = relatedEvents
         self.notes = notes
         self.relatedTask = relatedTask
+    }
+    
+    // MARK: - Equatable
+    static func == (lhs: FocusSession, rhs: FocusSession) -> Bool {
+        return lhs.id == rhs.id &&
+               lhs.title == rhs.title &&
+               lhs.startTime == rhs.startTime &&
+               lhs.endTime == rhs.endTime &&
+               lhs.duration == rhs.duration &&
+               lhs.tags == rhs.tags &&
+               lhs.relatedEvents == rhs.relatedEvents &&
+               lhs.relatedTask == rhs.relatedTask &&
+               lhs.notes == rhs.notes
     }
 }
 

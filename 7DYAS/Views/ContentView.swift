@@ -78,14 +78,9 @@ struct ContentView: View {
                 // 主内容区域
                 ScrollViewReader { proxy in
                     TabView(selection: $selectedTab) {
-                        ScrollView {
-                            LazyVStack {
-                                // 内容区域
-                                TimelineView(
-                                    selectedDate: $timelineSelectedDate
-                                )
-                            }
-                        }
+                        TimelineView(
+                            selectedDate: $timelineSelectedDate
+                        )
                         .tag(MainTab.timeline)
                         
                         PlanningView(
