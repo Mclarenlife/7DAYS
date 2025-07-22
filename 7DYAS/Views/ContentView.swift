@@ -101,7 +101,6 @@ struct ContentView: View {
             // 悬浮顶部标签栏
             VStack {
                 TopTabBar(selectedTab: $selectedTab, isFloating: true)
-                    .padding(.horizontal, 20)
                     .padding(.top, 0) // 移除顶部padding，让顶栏延伸到状态栏下方
                 
                 Spacer()
@@ -111,7 +110,7 @@ struct ContentView: View {
             // 时间线视图的悬浮日期栏 - 使用模糊动画组件
             VStack {
                 Spacer()
-                    .frame(height: 140) // 调整距离，适配悬浮顶栏
+                    .frame(height: 100) // 减少距离，让日期栏上移
                 
                 BlurAnimationWrapper(isVisible: selectedTab == .timeline) {
                     TimelineFloatingDateBar(
@@ -126,7 +125,7 @@ struct ContentView: View {
             // 计划视图的悬浮日期栏 - 使用相同的模糊动画效果
             VStack {
                 Spacer()
-                    .frame(height: 140) // 调整距离，适配悬浮顶栏
+                    .frame(height: 100) // 减少距离，让日期栏上移
                 
                 BlurAnimationWrapper(isVisible: selectedTab == .planning) {
                     PlanningFloatingDateBar(
@@ -237,6 +236,7 @@ struct TopTabBar: View {
                         removal: .opacity.combined(with: .move(edge: .leading))
                     ))
                     .id("stat-\(currentStatIndex)") // 强制重新渲染以触发过渡动画
+                    .offset(y: 12) // 使用 offset 来下移文字，而不是用 Spacer
                 
                 // 右侧设置按钮
                 HStack {
@@ -247,11 +247,12 @@ struct TopTabBar: View {
                             .font(.callout)
                             .foregroundColor(.secondary)
                     }
+                    .offset(y: 12) // 与统计信息文字保持相同的垂直偏移
                 }
             }
             .padding(.horizontal, 20)
             .padding(.top, 50) // 增加顶部padding为状态栏留出空间
-            .padding(.bottom, 16)
+            .padding(.bottom, 20) // 减少底部padding，缩小与标签栏的间距
             .onAppear {
                 startStatisticsRotation()
             }
@@ -271,9 +272,10 @@ struct TopTabBar: View {
                     }
                 }
                 .padding(.horizontal, 20)
+                .padding(.bottom, 12) // 增加标签栏底部padding
             }
         }
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .background(.ultraThinMaterial, in: UnevenRoundedRectangle(cornerRadii: .init(bottomLeading: 16, bottomTrailing: 16)))
         .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
     }
     
