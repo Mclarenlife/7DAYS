@@ -24,6 +24,7 @@ struct NewTaskView: View {
     @State private var selectedDateRange: TaskDateRange? = nil
     @State private var atItems: [String] = []
     @State private var newAtItem = ""
+    @State private var createdDate: Date = Date()
     
     var body: some View {
         NavigationView {
@@ -90,7 +91,9 @@ struct NewTaskView: View {
             type: selectedType,
             cycle: selectedCycle,
             dateRange: selectedDateRange,
-            atItems: atItems
+            atItems: atItems,
+            images: [],
+            createdDate: createdDate
         )
         
         viewModel.addTask(task)
@@ -217,6 +220,14 @@ struct DateRangePicker: View {
 extension NewTaskView {
     private var typeAndCycleSection: some View {
         VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("创建时间")
+                    .font(.headline)
+                Spacer()
+                DatePicker("", selection: $createdDate, displayedComponents: [.date, .hourAndMinute])
+                    .labelsHidden()
+                    .frame(maxWidth: 220)
+            }
             HStack {
                 Text("周期")
                     .font(.headline)

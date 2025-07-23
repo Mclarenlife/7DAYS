@@ -42,7 +42,7 @@ class PlanningViewModel: ObservableObject {
             if let range = task.dateRange {
                 switch range.cycle {
                 case .day:
-                    return Calendar.current.isDate(date, inSameDayAs: task.dueDate ?? date)
+                    return Calendar.current.isDate(date, inSameDayAs: task.createdDate)
                 case .week:
                     let weekday = Calendar.current.component(.weekday, from: date)
                     return range.selectedDays.contains(weekday)
@@ -55,7 +55,7 @@ class PlanningViewModel: ObservableObject {
                 }
             } else {
                 // 兼容旧数据
-                return Calendar.current.isDate(date, inSameDayAs: task.dueDate ?? date)
+                return Calendar.current.isDate(date, inSameDayAs: task.createdDate)
             }
         }.sorted(by: { $0.createdDate < $1.createdDate })
     }

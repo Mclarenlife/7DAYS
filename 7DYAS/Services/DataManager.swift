@@ -223,8 +223,7 @@ class DataManager: ObservableObject {
     // MARK: - Helper Methods
     func getTasksForDate(_ date: Date) -> [Task] {
         return tasks.filter { task in
-            guard let dueDate = task.dueDate else { return false }
-            return Calendar.current.isDate(dueDate, inSameDayAs: date)
+            Calendar.current.isDate(task.createdDate, inSameDayAs: date)
         }
     }
     

@@ -46,11 +46,11 @@ struct Task: Identifiable, Codable {
         }
     }
     
-    init(title: String, content: String = "", tags: [String] = [], dueDate: Date? = nil, priority: TaskPriority = .medium, type: TaskType = .plan, cycle: TaskCycle = .day, dateRange: TaskDateRange? = nil, atItems: [String] = [], images: [String] = []) {
+    init(title: String, content: String = "", tags: [String] = [], dueDate: Date? = nil, priority: TaskPriority = .medium, type: TaskType = .plan, cycle: TaskCycle = .day, dateRange: TaskDateRange? = nil, atItems: [String] = [], images: [String] = [], createdDate: Date = Date()) {
         self.title = title
         self.content = content
         self.tags = tags
-        self.createdDate = Date()
+        self.createdDate = createdDate
         self.dueDate = dueDate
         self.isCompleted = false
         self.priority = priority
