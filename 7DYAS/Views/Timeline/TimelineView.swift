@@ -158,7 +158,7 @@ struct TodayFocusStats: View {
         .padding(.horizontal, 12)
         .background(
             Rectangle()
-                .fill(.orange.opacity(0.15))
+                .fill(Color(.systemOrange).opacity(0.15))
         )
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
@@ -397,7 +397,7 @@ struct FocusSessionCard: View {
                                         }
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
-                                        .background(Color.green.opacity(0.1))
+                                        .background(Color(.systemGreen).opacity(0.15))
                                         .clipShape(RoundedRectangle(cornerRadius: 6))
                                     }
                                     
@@ -414,7 +414,7 @@ struct FocusSessionCard: View {
                                         }
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
-                                        .background(Color.purple.opacity(0.1))
+                                        .background(Color(.systemPurple).opacity(0.15))
                                         .clipShape(RoundedRectangle(cornerRadius: 6))
                                     }
                                     
@@ -431,7 +431,7 @@ struct FocusSessionCard: View {
                                         }
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
-                                        .background(Color.blue.opacity(0.1))
+                                        .background(Color(.systemBlue).opacity(0.15))
                                         .clipShape(RoundedRectangle(cornerRadius: 6))
                                     }
                                 }
@@ -511,7 +511,7 @@ struct FocusSessionCard: View {
                                             }
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
-                                            .background(Color.green.opacity(0.1))
+                                            .background(Color(.systemGreen).opacity(0.15))
                                             .clipShape(RoundedRectangle(cornerRadius: 4))
                                         }
                                         
@@ -527,7 +527,7 @@ struct FocusSessionCard: View {
                                             }
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
-                                            .background(Color.blue.opacity(0.1))
+                                            .background(Color(.systemBlue).opacity(0.15))
                                             .clipShape(RoundedRectangle(cornerRadius: 4))
                                         }
                                     } else {
@@ -545,7 +545,7 @@ struct FocusSessionCard: View {
                                             }
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
-                                            .background(Color.green.opacity(0.1))
+                                            .background(Color(.systemGreen).opacity(0.15))
                                             .clipShape(RoundedRectangle(cornerRadius: 4))
                                         }
                                         
@@ -562,7 +562,7 @@ struct FocusSessionCard: View {
                                             }
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
-                                            .background(Color.purple.opacity(0.1))
+                                            .background(Color(.systemPurple).opacity(0.15))
                                             .clipShape(RoundedRectangle(cornerRadius: 4))
                                         }
                                         
@@ -579,7 +579,7 @@ struct FocusSessionCard: View {
                                             }
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
-                                            .background(Color.blue.opacity(0.1))
+                                            .background(Color(.systemBlue).opacity(0.15))
                                             .clipShape(RoundedRectangle(cornerRadius: 4))
                                         }
                                     }
@@ -610,7 +610,7 @@ struct FocusSessionCard: View {
             .blur(radius: isAnimating ? 2 : 0)
             .animation(.easeOut(duration: 0.3), value: isAnimating)
         }
-        .background(Color.white) // 使用白色背景
+        .background(Color(.systemBackground)) // 使用系统背景色以适配深色模式
         .contentShape(Rectangle()) // 确保整个区域都可点击
         .contextMenu {
             // 编辑按钮
@@ -720,7 +720,7 @@ struct FocusSessionPreview: View {
                             }
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.green.opacity(0.1))
+                            .background(Color(.systemGreen).opacity(0.15))
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                         }
                         
@@ -737,7 +737,7 @@ struct FocusSessionPreview: View {
                             }
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.purple.opacity(0.1))
+                            .background(Color(.systemPurple).opacity(0.15))
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                         }
                         
@@ -754,7 +754,7 @@ struct FocusSessionPreview: View {
                             }
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.blue.opacity(0.1))
+                            .background(Color(.systemBlue).opacity(0.15))
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                         }
                     }
@@ -1015,7 +1015,7 @@ struct EditableTagField: View {
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Color.blue.opacity(0.1))
+                            .background(Color(.systemBlue).opacity(0.15))
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                     }
@@ -1078,7 +1078,7 @@ struct EditableEventField: View {
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Color.green.opacity(0.1))
+                            .background(Color(.systemGreen).opacity(0.15))
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                     }

@@ -534,7 +534,8 @@ struct PlanningFloatingDateBar: View {
         let formatter = DateFormatter()
         switch selectedViewType {
         case .day:
-            formatter.dateFormat = "MM月dd日 EEEE"
+            formatter.locale = Locale(identifier: "zh_CN")
+            formatter.dateFormat = "yyyy年MM月dd日" // 仅格式化年月日
         case .week:
             formatter.dateFormat = "MM月第W周"
         case .month:
@@ -545,6 +546,12 @@ struct PlanningFloatingDateBar: View {
         return formatter
     }
     
+    private var weekdayString: String {
+        let weekday = Calendar.current.component(.weekday, from: selectedDate)
+        let weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+        return weekdays[weekday - 1] // 星期日为1，星期六为7
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // 主日期栏
@@ -552,14 +559,18 @@ struct PlanningFloatingDateBar: View {
                 // 日期选择按钮
                 Button(action: { showingDatePicker = true }) {
                     HStack(spacing: 8) {
-                        Text(dateFormatter.string(from: selectedDate))
-                            .font(.headline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.primary)
-                        
-                        Image(systemName: "calendar")
-                            .font(.subheadline)
-                            .foregroundColor(.blue)
+                        if selectedViewType == .day {
+                            Text("\(dateFormatter.string(from: selectedDate)) \(weekdayString)")
+                                .font(.headline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        } else {
+                            Text(dateFormatter.string(from: selectedDate))
+                                .font(.headline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+                        // 删除日历图标
                     }
                 }
                 
