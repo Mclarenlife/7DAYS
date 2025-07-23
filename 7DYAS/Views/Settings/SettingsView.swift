@@ -468,6 +468,8 @@ struct TagManagerView: View {
     @State private var newFolderName = ""
     @State private var expandedFolders = Set<UUID>()
     @State private var isUnclassifiedExpanded = true // 控制无分类标签夹的展开状态
+    @State private var isSearching = false // 控制是否处于搜索模式
+    @FocusState private var isSearchFieldFocused: Bool // 控制搜索框焦点
     
     // 编辑状态
     @State private var selectedTag: Tag? = nil
@@ -479,222 +481,53 @@ struct TagManagerView: View {
     
     var body: some View {
         NavigationView {
-            List {
+            VStack(spacing: 0) {
                 // 搜索栏
-                Section {
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.secondary)
-                        TextField("搜索标签", text: $searchText)
-                            .autocapitalization(.none)
-                            .disableAutocorrection(true)
-                    }
-                }
-                
-                // 创建标签
-                Section(header: Text("创建标签")) {
-                    if isCreatingTag {
-                        // 创建标签表单
-                        VStack(alignment: .leading, spacing: 12) {
-                            TextField("标签名称", text: $newTagName)
-                            
-                            Picker("颜色", selection: $newTagColor) {
-                                ForEach(Tag.TagColor.allCases, id: \.self) { color in
-                                    HStack {
-                                        Circle()
-                                            .fill(color.swiftUIColor)
-                                            .frame(width: 16, height: 16)
-                                        Text(color.rawValue)
-                                    }
-                                    .tag(color)
-                                }
-                            }
-                            
-                            Picker("标签夹", selection: $selectedFolderId) {
-                                Text("无分类").tag(nil as UUID?)
-                                ForEach(dataManager.tagFolders) { folder in
-                                    Text(folder.name).tag(folder.id as UUID?)
-                                }
-                            }
-                            
-                            HStack {
-                                Button("取消") {
-                                    isCreatingTag = false
-                                    resetNewTagFields()
-                                }
-                                .buttonStyle(.bordered)
-                                
-                                Spacer()
-                                
-                                Button("创建") {
-                                    addNewTag()
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .disabled(newTagName.isEmpty)
-                            }
-                        }
-                    } else {
-                        Button(action: {
-                            isCreatingTag = true
-                        }) {
-                            Text("点击创建新标签")
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                }
-                
-                // 创建标签夹
-                Section(header: Text("创建标签夹")) {
-                    if isCreatingFolder {
-                        // 创建标签夹表单
-                        VStack(alignment: .leading, spacing: 12) {
-                            TextField("标签夹名称", text: $newFolderName)
-                            
-                            HStack {
-                                Button("取消") {
-                                    isCreatingFolder = false
-                                    newFolderName = ""
-                                }
-                                .buttonStyle(.bordered)
-                                
-                                Spacer()
-                                
-                                Button("创建") {
-                                    addNewFolder()
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .disabled(newFolderName.isEmpty)
-                            }
-                        }
-                    } else {
-                        Button(action: {
-                            isCreatingFolder = true
-                        }) {
-                            Text("点击创建新标签夹")
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                }
-                
-                // 标签列表，按文件夹分组
-                Section(header: Text("标签")) {
-                    // 无分类标签
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            isUnclassifiedExpanded.toggle()
-                        }
-                    }) {
+                if isSearching {
+                    // 搜索模式下的搜索栏
+                    VStack(spacing: 0) {
                         HStack {
-                            Image(systemName: "tray")
+                            Image(systemName: "magnifyingglass")
                                 .foregroundColor(.secondary)
-                            Text("无分类")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Text("\(filteredUnclassifiedTags().count)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Image(systemName: isUnclassifiedExpanded ? "chevron.up" : "chevron.down")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .contentShape(Rectangle())
-                        .padding(.vertical, 8)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    
-                    // 无分类标签列表（如果展开）
-                    if isUnclassifiedExpanded {
-                        let unclassifiedTags = filteredUnclassifiedTags()
-                        if unclassifiedTags.isEmpty {
-                            HStack {
-                                Spacer()
-                                Text("无标签")
-                                    .foregroundColor(.secondary)
-                                    .font(.caption)
-                                Spacer()
-                            }
-                            .padding(.vertical, 8)
-                            .padding(.leading, 16)
-                        } else {
-                            ForEach(unclassifiedTags) { tag in
-                                TagRow(tag: tag)
-                                    .padding(.vertical, 8)
-                                    .padding(.leading, 16)
-                                    .background(Color(UIColor.secondarySystemGroupedBackground))
-                                    .cornerRadius(8)
-                                    .padding(.vertical, 4)
-                                    .contextMenu {
-                                        Button("编辑") {
-                                            selectedTag = tag
-                                            showingEditTagSheet = true
-                                        }
-                                        Button("删除") {
-                                            selectedTag = tag
-                                            showingDeleteTagAlert = true
-                                        }
-                                    }
-                            }
-                            .transition(.opacity)
-                        }
-                    }
-                    
-                    // 按标签夹分组
-                    ForEach(sortedFolders()) { folder in
-                        // 标签夹标题行
-                        Button(action: {
-                            toggleFolderExpansion(folder.id)
-                        }) {
-                            HStack {
-                                Image(systemName: "folder")
-                                    .foregroundColor(.blue)
-                                Text(folder.name)
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                Spacer()
-                                Text("\(filteredTagsInFolder(folder.id).count)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Image(systemName: expandedFolders.contains(folder.id) ? "chevron.up" : "chevron.down")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            .contentShape(Rectangle())
-                            .padding(.vertical, 8)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .contextMenu {
-                            Button("编辑") {
-                                selectedFolder = folder
-                                showingEditFolderSheet = true
-                            }
-                            Button("删除") {
-                                selectedFolder = folder
-                                showingDeleteFolderAlert = true
-                            }
-                        }
-                        
-                        // 标签夹内容（如果展开）
-                        if expandedFolders.contains(folder.id) {
-                            let folderTags = filteredTagsInFolder(folder.id)
-                            if folderTags.isEmpty {
-                                HStack {
-                                    Spacer()
-                                    Text("无标签")
+                            TextField("搜索标签", text: $searchText)
+                                .autocapitalization(.none)
+                                .disableAutocorrection(true)
+                                .focused($isSearchFieldFocused)
+                            
+                            if !searchText.isEmpty {
+                                Button(action: {
+                                    searchText = ""
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
                                         .foregroundColor(.secondary)
-                                        .font(.caption)
-                                    Spacer()
                                 }
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 10)
+                        .background(Color(UIColor.systemBackground))
+                        
+                        Divider()
+                        
+                        // 搜索结果计数
+                        HStack {
+                            Text("搜索到 \(filteredSearchResults().count) 个标签")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal)
                                 .padding(.vertical, 8)
-                                .padding(.leading, 16)
-                            } else {
-                                ForEach(folderTags) { tag in
+                            Spacer()
+                        }
+                        .background(Color(UIColor.secondarySystemBackground))
+                        
+                        // 搜索结果列表
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(filteredSearchResults()) { tag in
                                     TagRow(tag: tag)
                                         .padding(.vertical, 8)
-                                        .padding(.leading, 16)
-                                        .background(Color(UIColor.secondarySystemGroupedBackground))
-                                        .cornerRadius(8)
-                                        .padding(.vertical, 4)
+                                        .padding(.horizontal)
+                                        .background(Color(UIColor.systemBackground))
                                         .contextMenu {
                                             Button("编辑") {
                                                 selectedTag = tag
@@ -705,8 +538,255 @@ struct TagManagerView: View {
                                                 showingDeleteTagAlert = true
                                             }
                                         }
+                                    
+                                    Divider()
                                 }
-                                .transition(.opacity)
+                            }
+                        }
+                    }
+                    .transition(.opacity)
+                } else {
+                    // 非搜索模式下的列表内容
+                    List {
+                        // 搜索栏
+                        Section {
+                            HStack {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(.secondary)
+                                Text("搜索标签")
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                withAnimation {
+                                    isSearching = true
+                                    // 延迟聚焦，确保动画完成后再聚焦
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                        isSearchFieldFocused = true
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // 创建标签
+                        Section(header: Text("创建标签")) {
+                            if isCreatingTag {
+                                // 创建标签表单
+                                VStack(alignment: .leading, spacing: 12) {
+                                    TextField("标签名称", text: $newTagName)
+                                    
+                                    Picker("颜色", selection: $newTagColor) {
+                                        ForEach(Tag.TagColor.allCases, id: \.self) { color in
+                                            HStack {
+                                                Circle()
+                                                    .fill(color.swiftUIColor)
+                                                    .frame(width: 16, height: 16)
+                                                Text(color.rawValue)
+                                            }
+                                            .tag(color)
+                                        }
+                                    }
+                                    
+                                    Picker("标签夹", selection: $selectedFolderId) {
+                                        Text("无分类").tag(nil as UUID?)
+                                        ForEach(dataManager.tagFolders) { folder in
+                                            Text(folder.name).tag(folder.id as UUID?)
+                                        }
+                                    }
+                                    
+                                    HStack {
+                                        Button("取消") {
+                                            isCreatingTag = false
+                                            resetNewTagFields()
+                                        }
+                                        .buttonStyle(.bordered)
+                                        
+                                        Spacer()
+                                        
+                                        Button("创建") {
+                                            addNewTag()
+                                        }
+                                        .buttonStyle(.borderedProminent)
+                                        .disabled(newTagName.isEmpty)
+                                    }
+                                }
+                            } else {
+                                Button(action: {
+                                    isCreatingTag = true
+                                }) {
+                                    Text("点击创建新标签")
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }
+                        }
+                        
+                        // 创建标签夹
+                        Section(header: Text("创建标签夹")) {
+                            if isCreatingFolder {
+                                // 创建标签夹表单
+                                VStack(alignment: .leading, spacing: 12) {
+                                    TextField("标签夹名称", text: $newFolderName)
+                                    
+                                    HStack {
+                                        Button("取消") {
+                                            isCreatingFolder = false
+                                            newFolderName = ""
+                                        }
+                                        .buttonStyle(.bordered)
+                                        
+                                        Spacer()
+                                        
+                                        Button("创建") {
+                                            addNewFolder()
+                                        }
+                                        .buttonStyle(.borderedProminent)
+                                        .disabled(newFolderName.isEmpty)
+                                    }
+                                }
+                            } else {
+                                Button(action: {
+                                    isCreatingFolder = true
+                                }) {
+                                    Text("点击创建新标签夹")
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }
+                        }
+                        
+                        // 标签列表，按文件夹分组
+                        Section(header: Text("标签")) {
+                            // 无分类标签
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    isUnclassifiedExpanded.toggle()
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "tray")
+                                        .foregroundColor(.secondary)
+                                    Text("无分类")
+                                        .font(.headline)
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    Text("\(filteredUnclassifiedTags().count)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Image(systemName: isUnclassifiedExpanded ? "chevron.up" : "chevron.down")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                .contentShape(Rectangle())
+                                .padding(.vertical, 8)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            
+                            // 无分类标签列表（如果展开）
+                            if isUnclassifiedExpanded {
+                                let unclassifiedTags = filteredUnclassifiedTags()
+                                if unclassifiedTags.isEmpty {
+                                    HStack {
+                                        Spacer()
+                                        Text("无标签")
+                                            .foregroundColor(.secondary)
+                                            .font(.caption)
+                                        Spacer()
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.leading, 16)
+                                } else {
+                                    ForEach(unclassifiedTags) { tag in
+                                        TagRow(tag: tag)
+                                            .padding(.vertical, 8)
+                                            .padding(.leading, 16)
+                                            .background(Color(UIColor.secondarySystemGroupedBackground))
+                                            .cornerRadius(8)
+                                            .padding(.vertical, 4)
+                                            .contextMenu {
+                                                Button("编辑") {
+                                                    selectedTag = tag
+                                                    showingEditTagSheet = true
+                                                }
+                                                Button("删除") {
+                                                    selectedTag = tag
+                                                    showingDeleteTagAlert = true
+                                                }
+                                            }
+                                    }
+                                    .transition(.opacity)
+                                }
+                            }
+                            
+                            // 按标签夹分组
+                            ForEach(sortedFolders()) { folder in
+                                // 标签夹标题行
+                                Button(action: {
+                                    toggleFolderExpansion(folder.id)
+                                }) {
+                                    HStack {
+                                        Image(systemName: "folder")
+                                            .foregroundColor(.blue)
+                                        Text(folder.name)
+                                            .font(.headline)
+                                            .foregroundColor(.primary)
+                                        Spacer()
+                                        Text("\(filteredTagsInFolder(folder.id).count)")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Image(systemName: expandedFolders.contains(folder.id) ? "chevron.up" : "chevron.down")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .contentShape(Rectangle())
+                                    .padding(.vertical, 8)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .contextMenu {
+                                    Button("编辑") {
+                                        selectedFolder = folder
+                                        showingEditFolderSheet = true
+                                    }
+                                    Button("删除") {
+                                        selectedFolder = folder
+                                        showingDeleteFolderAlert = true
+                                    }
+                                }
+                                
+                                // 标签夹内容（如果展开）
+                                if expandedFolders.contains(folder.id) {
+                                    let folderTags = filteredTagsInFolder(folder.id)
+                                    if folderTags.isEmpty {
+                                        HStack {
+                                            Spacer()
+                                            Text("无标签")
+                                                .foregroundColor(.secondary)
+                                                .font(.caption)
+                                            Spacer()
+                                        }
+                                        .padding(.vertical, 8)
+                                        .padding(.leading, 16)
+                                    } else {
+                                        ForEach(folderTags) { tag in
+                                            TagRow(tag: tag)
+                                                .padding(.vertical, 8)
+                                                .padding(.leading, 16)
+                                                .background(Color(UIColor.secondarySystemGroupedBackground))
+                                                .cornerRadius(8)
+                                                .padding(.vertical, 4)
+                                                .contextMenu {
+                                                    Button("编辑") {
+                                                        selectedTag = tag
+                                                        showingEditTagSheet = true
+                                                    }
+                                                    Button("删除") {
+                                                        selectedTag = tag
+                                                        showingDeleteTagAlert = true
+                                                    }
+                                                }
+                                        }
+                                        .transition(.opacity)
+                                    }
+                                }
                             }
                         }
                     }
@@ -716,8 +796,18 @@ struct TagManagerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("完成") {
-                        dismiss()
+                    if isSearching {
+                        Button("取消") {
+                            withAnimation {
+                                isSearching = false
+                                searchText = ""
+                                isSearchFieldFocused = false
+                            }
+                        }
+                    } else {
+                        Button("完成") {
+                            dismiss()
+                        }
                     }
                 }
             }
@@ -756,10 +846,10 @@ struct TagManagerView: View {
     
     // MARK: - 辅助方法
     
-    // 过滤搜索结果
-    private func filteredTags() -> [Tag] {
+    // 搜索结果
+    private func filteredSearchResults() -> [Tag] {
         if searchText.isEmpty {
-            return dataManager.tags
+            return [] // 搜索框为空时返回空数组，不显示任何标签
         } else {
             return dataManager.tags.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
         }
