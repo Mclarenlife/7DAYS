@@ -64,6 +64,9 @@ struct PlanningView: View {
             NewTaskView()
                 .environmentObject(viewModel)
         }
+        .onAppear {
+            viewModel.reloadTasks()
+        }
     }
 }
 

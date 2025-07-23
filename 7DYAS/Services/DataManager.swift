@@ -11,11 +11,11 @@ import Combine
 class DataManager: ObservableObject {
     static let shared = DataManager()
     
-    @Published var tasks: [Task] = []
-    @Published var focusSessions: [FocusSession] = []
-    @Published var checkIns: [CheckIn] = []
-    @Published var tags: [Tag] = []
-    @Published var temporaryIdeas: [TemporaryIdea] = []
+    @Published public var tasks: [Task] = []
+    @Published public var focusSessions: [FocusSession] = []
+    @Published public var checkIns: [CheckIn] = []
+    @Published public var tags: [Tag] = []
+    @Published public var temporaryIdeas: [TemporaryIdea] = []
     
     private let userDefaults = UserDefaults.standard
     
@@ -77,31 +77,31 @@ class DataManager: ObservableObject {
     }
     
     // MARK: - Data Saving
-    private func saveTasks() {
+    func saveTasks() {
         if let encoded = try? JSONEncoder().encode(tasks) {
             userDefaults.set(encoded, forKey: Keys.tasks)
         }
     }
     
-    private func saveFocusSessions() {
+    func saveFocusSessions() {
         if let encoded = try? JSONEncoder().encode(focusSessions) {
             userDefaults.set(encoded, forKey: Keys.focusSessions)
         }
     }
     
-    private func saveCheckIns() {
+    func saveCheckIns() {
         if let encoded = try? JSONEncoder().encode(checkIns) {
             userDefaults.set(encoded, forKey: Keys.checkIns)
         }
     }
     
-    private func saveTags() {
+    func saveTags() {
         if let encoded = try? JSONEncoder().encode(tags) {
             userDefaults.set(encoded, forKey: Keys.tags)
         }
     }
     
-    private func saveTemporaryIdeas() {
+    func saveTemporaryIdeas() {
         if let encoded = try? JSONEncoder().encode(temporaryIdeas) {
             userDefaults.set(encoded, forKey: Keys.temporaryIdeas)
         }
@@ -258,5 +258,47 @@ class DataManager: ObservableObject {
     // MARK: - Total Statistics
     func getTotalFocusTime() -> TimeInterval {
         return focusSessions.reduce(0) { $0 + $1.duration }
+    }
+    
+    // MARK: - 数据删除方法
+    
+    /// 删除所有应用数据
+    func deleteAllData() {
+        tasks.removeAll()
+        tags.removeAll()
+        focusSessions.removeAll()
+        checkIns.removeAll()
+        temporaryIdeas.removeAll()
+        saveTasks()
+        saveTags()
+        saveFocusSessions()
+        saveCheckIns()
+        saveTemporaryIdeas()
+    }
+    
+    /// 删除专注数据
+    func deleteFocusData() {
+        focusSessions.removeAll()
+        saveFocusSessions()
+    }
+    
+    /// 删除计划数据
+    func deleteTasksData() {
+        tasks.removeAll()
+        tags.removeAll()
+        saveTasks()
+        saveTags()
+    }
+    
+    /// 删除打卡数据
+    func deleteCheckInsData() {
+        checkIns.removeAll()
+        saveCheckIns()
+    }
+    
+    /// 删除暂存数据
+    func deleteTemporaryData() {
+        temporaryIdeas.removeAll()
+        saveTemporaryIdeas()
     }
 }

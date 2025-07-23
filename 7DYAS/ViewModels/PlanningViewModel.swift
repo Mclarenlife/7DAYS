@@ -1,15 +1,24 @@
 import Foundation
 import SwiftUI
+import Combine
 
 class PlanningViewModel: ObservableObject {
     @Published var tasks: [Task] = []
     @Published var showCompleted: Bool = false
     @Published var expandedTaskIDs: Set<UUID> = []
     
-    private let dataManager = DataManager.shared
+    private var dataManager = DataManager.shared
+    private var cancellables = Set<AnyCancellable>()
     
     init() {
         self.tasks = dataManager.tasks
+       
+        // 监听DataManager中的tasks变化
+        dataManager.$tasks
+            .sink { [weak self] updatedTasks in
+                self?.tasks = updatedTasks
+            }
+            .store(in: &cancellables)
     }
     
     func reloadTasks() {

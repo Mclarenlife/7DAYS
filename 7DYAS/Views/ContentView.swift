@@ -15,6 +15,7 @@ struct ContentView: View {
     @State private var showingFocusTimer = false
     @State private var showingGlobalSearch = false
     @State private var showingBottomTimerBar = false // 底部计时条状态
+    @State private var showingSettings = false // 添加设置弹窗状态
     
     // 时间线日期栏状态
     @State private var timelineSelectedDate = Date()
@@ -190,6 +191,10 @@ struct ContentView: View {
         .sheet(isPresented: $showingPlanningDatePicker) {
             PlanningDatePickerSheet(selectedDate: $planningSelectedDate)
         }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+                .environmentObject(dataManager)
+        }
         .onChange(of: timerService.sessionState) { oldValue, newValue in
             // 当计时器状态变为空闲时，隐藏底部计时条
             if newValue == .idle {
@@ -204,6 +209,7 @@ struct TopTabBar: View {
     @Binding var selectedTab: ContentView.MainTab
     @EnvironmentObject var dataManager: DataManager
     let isFloating: Bool
+    @State private var showingSettings = false // 添加设置弹窗状态
     
     @State private var currentStatIndex = 0
     @State private var timer: Timer?
@@ -240,7 +246,7 @@ struct TopTabBar: View {
                 HStack {
                     Spacer()
                     
-                    Button(action: {}) {
+                    Button(action: { showingSettings = true }) {
                         Image(systemName: "gearshape.fill")
                             .font(.callout)
                             .foregroundColor(.secondary)
@@ -306,6 +312,10 @@ struct TopTabBar: View {
             .ignoresSafeArea(.all, edges: .top) // 确保背景延伸到状态栏
         }
         // .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4) // 阴影已移除
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+                .environmentObject(dataManager)
+        }
     }
     
     // MARK: - Statistics Rotation Methods
