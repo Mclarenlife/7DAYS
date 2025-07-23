@@ -15,6 +15,7 @@ class DataManager: ObservableObject {
     @Published public var focusSessions: [FocusSession] = []
     @Published public var checkIns: [CheckIn] = []
     @Published public var tags: [Tag] = []
+    @Published public var tagFolders: [TagFolder] = []
     @Published public var temporaryIdeas: [TemporaryIdea] = []
     
     private let userDefaults = UserDefaults.standard
@@ -25,6 +26,7 @@ class DataManager: ObservableObject {
         static let focusSessions = "SavedFocusSessions"
         static let checkIns = "SavedCheckIns"
         static let tags = "SavedTags"
+        static let tagFolders = "SavedTagFolders"
         static let temporaryIdeas = "SavedTemporaryIdeas"
     }
     
@@ -38,6 +40,7 @@ class DataManager: ObservableObject {
         loadFocusSessions()
         loadCheckIns()
         loadTags()
+        loadTagFolders()
         loadTemporaryIdeas()
     }
     
@@ -66,6 +69,13 @@ class DataManager: ObservableObject {
         if let data = userDefaults.data(forKey: Keys.tags),
            let decodedTags = try? JSONDecoder().decode([Tag].self, from: data) {
             tags = decodedTags
+        }
+    }
+    
+    private func loadTagFolders() {
+        if let data = userDefaults.data(forKey: Keys.tagFolders),
+           let decodedFolders = try? JSONDecoder().decode([TagFolder].self, from: data) {
+            tagFolders = decodedFolders
         }
     }
     
@@ -98,6 +108,12 @@ class DataManager: ObservableObject {
     func saveTags() {
         if let encoded = try? JSONEncoder().encode(tags) {
             userDefaults.set(encoded, forKey: Keys.tags)
+        }
+    }
+    
+    func saveTagFolders() {
+        if let encoded = try? JSONEncoder().encode(tagFolders) {
+            userDefaults.set(encoded, forKey: Keys.tagFolders)
         }
     }
     
@@ -200,6 +216,67 @@ class DataManager: ObservableObject {
             tags[index].incrementUsage()
             saveTags()
         }
+    }
+    
+    // MARK: - Tag Folder Operations
+    
+    /// 添加标签夹
+    func addTagFolder(_ folder: TagFolder) {
+        if !tagFolders.contains(where: { $0.name == folder.name }) {
+            tagFolders.append(folder)
+            saveTagFolders()
+        }
+    }
+    
+    /// 更新标签夹
+    func updateTagFolder(_ folder: TagFolder) {
+        if let index = tagFolders.firstIndex(where: { $0.id == folder.id }) {
+            tagFolders[index] = folder
+            saveTagFolders()
+        }
+    }
+    
+    /// 删除标签夹
+    func deleteTagFolder(_ folder: TagFolder) {
+        // 将该文件夹中的标签移到"无分类"
+        for i in 0..<tags.count {
+            if tags[i].folderId == folder.id {
+                tags[i].folderId = nil
+            }
+        }
+        
+        // 删除文件夹
+        tagFolders.removeAll { $0.id == folder.id }
+        
+        // 保存更改
+        saveTags()
+        saveTagFolders()
+    }
+    
+    /// 更新标签
+    func updateTag(_ tag: Tag) {
+        if let index = tags.firstIndex(where: { $0.id == tag.id }) {
+            tags[index] = tag
+            saveTags()
+        }
+    }
+    
+    /// 移动标签到指定文件夹
+    func moveTag(_ tag: Tag, toFolder folderId: UUID?) {
+        if let index = tags.firstIndex(where: { $0.id == tag.id }) {
+            tags[index].folderId = folderId
+            saveTags()
+        }
+    }
+    
+    /// 获取指定文件夹中的所有标签
+    func tagsInFolder(_ folderId: UUID?) -> [Tag] {
+        return tags.filter { $0.folderId == folderId }
+    }
+    
+    /// 获取所有未分类的标签
+    func unclassifiedTags() -> [Tag] {
+        return tags.filter { $0.folderId == nil }
     }
     
     // MARK: - Temporary Ideas Operations

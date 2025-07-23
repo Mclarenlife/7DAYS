@@ -8,12 +8,25 @@
 import Foundation
 import SwiftUI
 
+// 标签夹模型
+struct TagFolder: Identifiable, Codable, Hashable {
+    var id = UUID()
+    var name: String
+    var createdDate: Date
+    
+    init(name: String) {
+        self.name = name
+        self.createdDate = Date()
+    }
+}
+
 struct Tag: Identifiable, Codable, Hashable {
     var id = UUID()
     var name: String
     var color: TagColor
     var createdDate: Date
     var usageCount: Int // 使用次数
+    var folderId: UUID? // 所属标签夹的ID，nil表示无分类
     
     enum TagColor: String, CaseIterable, Codable {
         case blue = "蓝色"
@@ -53,11 +66,12 @@ struct Tag: Identifiable, Codable, Hashable {
         }
     }
     
-    init(name: String, color: TagColor = .blue) {
+    init(name: String, color: TagColor = .blue, folderId: UUID? = nil) {
         self.name = name
         self.color = color
         self.createdDate = Date()
         self.usageCount = 0
+        self.folderId = folderId
     }
     
     mutating func incrementUsage() {
