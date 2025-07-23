@@ -33,7 +33,7 @@ struct PlanningView: View {
     }
     
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack(alignment: .bottom) {
             Group {
                 switch selectedViewType {
                 case .day:
@@ -50,13 +50,15 @@ struct PlanningView: View {
                         .environmentObject(viewModel)
                 }
             }
-            // 移除多余的顶部padding
-            // 悬浮添加按钮
-            FloatingAddButton {
-                showingNewTask = true
+            // 悬浮添加按钮水平居中
+            HStack {
+                Spacer()
+                FloatingAddButton {
+                    showingNewTask = true
+                }
+                Spacer()
             }
-            .padding(.trailing, 24)
-            .padding(.bottom, 80)
+            .padding(.bottom, 60)
         }
         .sheet(isPresented: $showingNewTask) {
             NewTaskView()

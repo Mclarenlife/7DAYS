@@ -20,6 +20,7 @@ struct DayPlanningView: View {
             // 内容区域切换由外部控制
             ScrollView {
                 LazyVStack(spacing: 12) {
+                    Color.clear.frame(height: 190)
                     ForEach(viewModel.uncompletedTasksFor(date: selectedDate, type: currentTaskType, cycle: currentCycle)) { task in
                         TodoItemCell(task: task, expanded: viewModel.expandedTaskIDs.contains(task.id)) {
                             viewModel.toggleExpand(task)

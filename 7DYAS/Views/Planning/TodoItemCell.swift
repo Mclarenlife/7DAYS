@@ -5,6 +5,7 @@ struct TodoItemCell: View {
     let expanded: Bool
     let onExpand: () -> Void
     let onCheck: () -> Void
+    @State private var localExpanded: Bool = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -36,7 +37,11 @@ struct TodoItemCell: View {
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
-                Button(action: onExpand) {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        onExpand()
+                    }
+                }) {
                     Image(systemName: expanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -81,6 +86,10 @@ struct TodoItemCell: View {
                         .foregroundColor(.secondary)
                 }
                 .padding(.leading, 32)
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                    removal: .opacity.combined(with: .scale(scale: 1.05))
+                ))
             }
         }
         .padding(16)
