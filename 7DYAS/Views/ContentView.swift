@@ -259,18 +259,26 @@ struct TopTabBar: View {
             }
             
             // 标签栏
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 0) {
-                    ForEach(ContentView.MainTab.allCases, id: \.self) { tab in
-                        TabButton(
-                            tab: tab,
-                            isSelected: selectedTab == tab,
-                            action: { selectedTab = tab }
-                        )
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 0) {
+                        ForEach(ContentView.MainTab.allCases, id: \.self) { tab in
+                            TabButton(
+                                tab: tab,
+                                isSelected: selectedTab == tab,
+                                action: { selectedTab = tab }
+                            )
+                            .id(tab) // 给每个TabButton设置唯一id
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 12) // 增加标签栏底部padding
+                }
+                .onChange(of: selectedTab) { oldValue, newValue in
+                    withAnimation(.easeInOut) {
+                        proxy.scrollTo(newValue, anchor: .center)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 12) // 增加标签栏底部padding
             }
         }
         .background {

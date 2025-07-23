@@ -6,13 +6,15 @@
 //
 
 import SwiftUI
+import Combine
 
 struct PlanningView: View {
     @Binding var selectedDate: Date
     @Binding var selectedViewType: PlanningViewType
     @Binding var selectedDaySubView: ContentView.DaySubViewType
-    @EnvironmentObject var dataManager: DataManager
+    @StateObject private var viewModel = PlanningViewModel()
     @State private var showingNewTask = false
+    @State private var showCompleted = false
     
     enum PlanningViewType: String, CaseIterable {
         case day = "日"
@@ -31,22 +33,34 @@ struct PlanningView: View {
     }
     
     var body: some View {
-        // 内容区域 - 头部现在由 ContentView 管理
-        Group {
-            switch selectedViewType {
-            case .day:
-                DayPlanningView(selectedDate: selectedDate, selectedSubView: selectedDaySubView)
-            case .week:
-                WeekPlanningView(selectedDate: selectedDate)
-            case .month:
-                MonthPlanningView(selectedDate: selectedDate)
-            case .year:
-                YearPlanningView(selectedDate: selectedDate)
+        ZStack(alignment: .bottomTrailing) {
+            Group {
+                switch selectedViewType {
+                case .day:
+                    DayPlanningView(selectedDate: selectedDate, selectedSubView: selectedDaySubView)
+                        .environmentObject(viewModel)
+                case .week:
+                    WeekPlanningView(selectedDate: selectedDate)
+                        .environmentObject(viewModel)
+                case .month:
+                    MonthPlanningView(selectedDate: selectedDate)
+                        .environmentObject(viewModel)
+                case .year:
+                    YearPlanningView(selectedDate: selectedDate)
+                        .environmentObject(viewModel)
+                }
             }
+            // 移除多余的顶部padding
+            // 悬浮添加按钮
+            FloatingAddButton {
+                showingNewTask = true
+            }
+            .padding(.trailing, 24)
+            .padding(.bottom, 80)
         }
-        .padding(.top, 20) // 为悬浮日期栏留出空间
         .sheet(isPresented: $showingNewTask) {
             NewTaskView()
+                .environmentObject(viewModel)
         }
     }
 }
@@ -185,41 +199,7 @@ struct DateNavigationView: View {
     }
 }
 
-// 日视图
-struct DayPlanningView: View {
-    let selectedDate: Date
-    let selectedSubView: ContentView.DaySubViewType
-    @EnvironmentObject var dataManager: DataManager
-    
-    private var tasksForDate: [Task] {
-        dataManager.getTasksForDate(selectedDate)
-    }
-    
-    // 将 DaySubViewType 转换为 TaskType
-    private var currentTaskType: TaskType {
-        switch selectedSubView {
-        case .planning:
-            return .plan
-        case .dailyRoutine:
-            return .dailyRoutine
-        case .journal:
-            return .journal
-        }
-    }
-    
-    var body: some View {
-        // 任务列表 - 移除了原有的选择器
-        ScrollView {
-            LazyVStack(spacing: 12) {
-                ForEach(tasksForDate) { task in
-                    TaskCard(task: task)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-        }
-    }
-}
+// 删除原有的DayPlanningView定义，避免重复声明
 
 struct TaskCard: View {
     let task: Task
