@@ -30,7 +30,11 @@ struct DayPlanningView: View {
                     }
                     if !viewModel.completedTasksFor(date: selectedDate, type: currentTaskType, cycle: currentCycle).isEmpty {
                         Divider().padding(.vertical, 8)
-                        Button(action: { viewModel.showCompleted.toggle() }) {
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.35)) {
+                                viewModel.showCompleted.toggle()
+                            }
+                        }) {
                             HStack {
                                 Text(viewModel.showCompleted ? "收起已完成" : "展开已完成")
                                 Image(systemName: viewModel.showCompleted ? "chevron.up" : "chevron.down")
@@ -45,6 +49,10 @@ struct DayPlanningView: View {
                                 } onCheck: {
                                     viewModel.toggleTaskCompletion(task)
                                 }
+                                .transition(.asymmetric(
+                                    insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                                    removal: .opacity.combined(with: .scale(scale: 1.05))
+                                ))
                             }
                         }
                     }
