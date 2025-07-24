@@ -53,6 +53,12 @@ class PlanningViewModel: ObservableObject {
         // 支持多周期、多日期、延期、每日循环等逻辑
         return tasks.filter { task in
             guard task.type == type, task.cycle == cycle else { return false }
+            
+            // 对于"每日循环"类型，无论日期如何都返回所有任务
+            if type == .dailyRoutine {
+                return true
+            }
+            
             // 日/周/月/年周期判断
             if let range = task.dateRange {
                 switch range.cycle {

@@ -33,6 +33,45 @@ struct DayPlanningView: View {
     
     private var currentCycle: TaskCycle { .day }
     
+    // 辅助方法：处理未完成任务标记为完成
+    private func handleTaskCompletion(_ task: Task) {
+        if !task.isCompleted {
+            // 添加淡出效果
+            withAnimation(.easeInOut(duration: 0.5)) {
+                // 延迟实际数据修改，让动画有时间展现
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    viewModel.toggleTaskCompletion(task)
+                    refreshID = UUID()
+                    // 如果任务被标记为完成，自动展开已完成列表
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        showCompletedLocal = true
+                    }
+                }
+            }
+        } else {
+            // 如果是取消完成，则直接执行
+            viewModel.toggleTaskCompletion(task)
+            refreshID = UUID()
+        }
+    }
+    
+    // 辅助方法：处理已完成任务取消完成
+    private func handleCompletedTaskToggle(_ task: Task) {
+        if task.isCompleted {
+            // 添加淡出效果
+            withAnimation(.easeInOut(duration: 0.5)) {
+                // 延迟实际数据修改
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    viewModel.toggleTaskCompletion(task)
+                    refreshID = UUID()
+                }
+            }
+        } else {
+            viewModel.toggleTaskCompletion(task)
+            refreshID = UUID()
+        }
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ScrollViewReader { proxy in
@@ -103,17 +142,13 @@ struct DayPlanningView: View {
                                     refreshID = UUID()
                                 }
                             } onCheck: {
-                                viewModel.toggleTaskCompletion(task)
-                                refreshID = UUID()
-                                // 如果任务被标记为完成，自动展开已完成列表
-                                if task.isCompleted {
-                                    withAnimation(.easeInOut(duration: 0.35)) {
-                                        showCompletedLocal = true
-                                    }
-                                }
+                                // 简化标记完成逻辑
+                                handleTaskCompletion(task)
                             }
                             .matchedGeometryEffect(id: "task_\(task.id)", in: animation)
                             .id("task_\(task.id)") // 添加ID标识，用于滚动定位
+                            // 使用更简单的过渡效果
+                            .transition(.opacity)
                         }
                         
                         // 已完成任务列表
@@ -145,10 +180,12 @@ struct DayPlanningView: View {
                                                 refreshID = UUID()
                                             }
                                         } onCheck: {
-                                            viewModel.toggleTaskCompletion(task)
-                                            refreshID = UUID()
+                                            // 简化标记完成逻辑
+                                            handleCompletedTaskToggle(task)
                                         }
                                         .matchedGeometryEffect(id: "task_\(task.id)", in: animation)
+                                        // 使用更简单的过渡效果
+                                        .transition(.opacity)
                                     }
                                 }
                                 .transition(.opacity) // 只对整个列表应用淡入淡出，内部项目保持位置
@@ -177,6 +214,8 @@ struct DayPlanningView: View {
                     .padding(.vertical, 16)
                     // 确保所有子视图的位置变化都有动画
                     .animation(.easeInOut(duration: 0.35), value: viewModel.expandedTaskIDs)
+                    // 添加对任务完成状态变化的动画
+                    .animation(.easeInOut(duration: 0.35), value: refreshID)
                 }
                 .onChange(of: viewModel.tasks.count) { _, _ in
                     // 检查是否有新添加的任务

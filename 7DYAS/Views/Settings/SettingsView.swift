@@ -568,8 +568,11 @@ struct TagManagerView: View {
                                 }
                             }
                         }
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        .background(Color(.systemBackground))
                         
-                        // 创建标签
+                        // 创建标签和标签夹组合Section
                         Section {
                             if isCreatingTag {
                                 // 创建标签表单
@@ -597,8 +600,10 @@ struct TagManagerView: View {
                                     
                                     HStack {
                                         Button("取消") {
-                                            isCreatingTag = false
-                                            resetNewTagFields()
+                                            withAnimation(.easeInOut(duration: 0.35)) {
+                                                isCreatingTag = false
+                                                resetNewTagFields()
+                                            }
                                         }
                                         .buttonStyle(.bordered)
                                         
@@ -611,18 +616,31 @@ struct TagManagerView: View {
                                         .disabled(newTagName.isEmpty)
                                     }
                                 }
+                                .padding(.horizontal, 16)
+                                .transition(.asymmetric(
+                                    insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                                    removal: .opacity.combined(with: .scale(scale: 1.05))
+                                ))
                             } else {
                                 Button(action: {
-                                    isCreatingTag = true
+                                    withAnimation(.easeInOut(duration: 0.35)) {
+                                        isCreatingTag = true
+                                    }
                                 }) {
                                     Text("点击创建新标签")
                                         .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 16)
                                 }
+                                .buttonStyle(PlainButtonStyle())
                             }
-                        }
-                        
-                        // 创建标签夹
-                        Section {
+                            
+                            Divider()
+                                .padding(.vertical, 0)
+                                .padding(.horizontal, 16)
+                                .opacity(0.3)
+                            
+                            // 创建标签夹部分
                             if isCreatingFolder {
                                 // 创建标签夹表单
                                 VStack(alignment: .leading, spacing: 12) {
@@ -630,8 +648,10 @@ struct TagManagerView: View {
                                     
                                     HStack {
                                         Button("取消") {
-                                            isCreatingFolder = false
-                                            newFolderName = ""
+                                            withAnimation(.easeInOut(duration: 0.35)) {
+                                                isCreatingFolder = false
+                                                newFolderName = ""
+                                            }
                                         }
                                         .buttonStyle(.bordered)
                                         
@@ -644,15 +664,28 @@ struct TagManagerView: View {
                                         .disabled(newFolderName.isEmpty)
                                     }
                                 }
+                                .padding(.horizontal, 16)
+                                .transition(.asymmetric(
+                                    insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                                    removal: .opacity.combined(with: .scale(scale: 1.05))
+                                ))
                             } else {
                                 Button(action: {
-                                    isCreatingFolder = true
+                                    withAnimation(.easeInOut(duration: 0.35)) {
+                                        isCreatingFolder = true
+                                    }
                                 }) {
                                     Text("点击创建新标签夹")
                                         .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 16)
                                 }
+                                .buttonStyle(PlainButtonStyle())
                             }
                         }
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        .background(Color(.systemBackground))
                         
                         // 标签列表，按文件夹分组
                         Section(header: Text("标签")) {
@@ -694,6 +727,10 @@ struct TagManagerView: View {
                                     }
                                     .padding(.vertical, 8)
                                     .padding(.leading, 16)
+                                    .transition(.asymmetric(
+                                        insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                                        removal: .opacity.combined(with: .scale(scale: 1.05))
+                                    ))
                                 } else {
                                     ForEach(unclassifiedTags) { tag in
                                         TagRow(tag: tag)
@@ -712,8 +749,11 @@ struct TagManagerView: View {
                                                     showingDeleteTagAlert = true
                                                 }
                                             }
+                                            .transition(.asymmetric(
+                                                insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                                                removal: .opacity.combined(with: .scale(scale: 1.05))
+                                            ))
                                     }
-                                    .transition(.opacity)
                                 }
                             }
                             
@@ -765,6 +805,10 @@ struct TagManagerView: View {
                                         }
                                         .padding(.vertical, 8)
                                         .padding(.leading, 16)
+                                        .transition(.asymmetric(
+                                            insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                                            removal: .opacity.combined(with: .scale(scale: 1.05))
+                                        ))
                                     } else {
                                         ForEach(folderTags) { tag in
                                             TagRow(tag: tag)
@@ -783,13 +827,18 @@ struct TagManagerView: View {
                                                         showingDeleteTagAlert = true
                                                     }
                                                 }
+                                                .transition(.asymmetric(
+                                                    insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                                                    removal: .opacity.combined(with: .scale(scale: 1.05))
+                                                ))
                                         }
-                                        .transition(.opacity)
                                     }
                                 }
                             }
                         }
                     }
+                    .listStyle(PlainListStyle())
+                    .background(Color(.systemBackground))
                 }
             }
             .navigationTitle("标签管理")
@@ -882,7 +931,7 @@ struct TagManagerView: View {
     
     // 切换文件夹展开状态
     private func toggleFolderExpansion(_ folderId: UUID) {
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(.easeInOut(duration: 0.35)) {
             if expandedFolders.contains(folderId) {
                 expandedFolders.remove(folderId)
             } else {
@@ -895,16 +944,22 @@ struct TagManagerView: View {
     private func addNewTag() {
         let newTag = Tag(name: newTagName, color: newTagColor, folderId: selectedFolderId)
         dataManager.addTag(newTag)
-        resetNewTagFields()
-        isCreatingTag = false
+        
+        withAnimation(.easeInOut(duration: 0.35)) {
+            resetNewTagFields()
+            isCreatingTag = false
+        }
     }
     
     // 添加新文件夹
     private func addNewFolder() {
         let newFolder = TagFolder(name: newFolderName)
         dataManager.addTagFolder(newFolder)
-        newFolderName = ""
-        isCreatingFolder = false
+        
+        withAnimation(.easeInOut(duration: 0.35)) {
+            newFolderName = ""
+            isCreatingFolder = false
+        }
     }
     
     // 重置新标签的字段
@@ -1257,7 +1312,7 @@ struct AboutView: View {
                             .frame(width: 100, height: 100)
                             .cornerRadius(20)
                         
-                        Text("7天助手")
+                        Text("7天")
                             .font(.title2)
                             .fontWeight(.bold)
                         
@@ -1274,11 +1329,11 @@ struct AboutView: View {
                 }
                 
                 Section(header: Text("联系我们")) {
-                    Link(destination: URL(string: "mailto:support@example.com")!) {
+                    Link(destination: URL(string: "mailto:xiangjinleee@gmail.com")!) {
                         HStack {
                             Text("电子邮件")
                             Spacer()
-                            Text("support@example.com")
+                            Text("xiangjinleee@gmail.com")
                                 .foregroundColor(.secondary)
                         }
                     }
