@@ -6,6 +6,7 @@ class PlanningViewModel: ObservableObject {
     @Published var tasks: [Task] = []
     @Published var showCompleted: Bool = false
     @Published var expandedTaskIDs: Set<UUID> = []
+    @Published var lastAddedTaskID: UUID? = nil // 最近添加的任务ID
     
     private var dataManager = DataManager.shared
     private var cancellables = Set<AnyCancellable>()
@@ -27,6 +28,7 @@ class PlanningViewModel: ObservableObject {
     
     func addTask(_ task: Task) {
         dataManager.addTask(task)
+        lastAddedTaskID = task.id // 记录最近添加的任务ID
         reloadTasks()
     }
     

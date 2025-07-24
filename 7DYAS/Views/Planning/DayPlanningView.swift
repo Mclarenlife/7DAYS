@@ -48,6 +48,7 @@ struct DayPlanningView: View {
                                 }
                             }
                             .matchedGeometryEffect(id: "task_\(task.id)", in: animation)
+                            .id("task_\(task.id)") // 添加ID标识，用于滚动定位
                         }
                         
                         // 已完成任务列表
@@ -114,9 +115,16 @@ struct DayPlanningView: View {
                     .animation(.easeInOut(duration: 0.35), value: viewModel.expandedTaskIDs)
                 }
                 .onChange(of: viewModel.tasks.count) { _, _ in
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        withAnimation(.easeInOut(duration: 0.5)) {
-                            proxy.scrollTo("bottom_stats", anchor: .bottom)
+                    // 检查是否有新添加的任务
+                    if let lastAddedTaskID = viewModel.lastAddedTaskID {
+                        // 延迟一点执行，确保视图已更新
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            // 只滚动到新添加的任务，而不是底部
+                            withAnimation(.easeInOut(duration: 0.5)) {
+                                proxy.scrollTo("task_\(lastAddedTaskID)", anchor: .center)
+                            }
+                            // 清除最近添加的任务ID，避免重复滚动
+                            viewModel.lastAddedTaskID = nil
                         }
                     }
                 }
