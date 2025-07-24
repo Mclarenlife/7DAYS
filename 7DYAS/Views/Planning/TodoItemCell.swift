@@ -8,6 +8,8 @@ struct TodoItemCell: View {
     
     // 添加本地状态，用于控制展开/收起动画
     @State private var isExpanded: Bool
+    // 获取当前颜色模式
+    @Environment(\.colorScheme) private var colorScheme
     
     // 添加初始化方法，同步外部和内部状态
     init(task: Task, expanded: Bool, onExpand: @escaping () -> Void, onCheck: @escaping () -> Void) {
@@ -123,19 +125,23 @@ struct TodoItemCell: View {
                         }
                     }
                     
-                    Text("类型：\(task.type.rawValue)  周期：\(task.cycle.rawValue)")
+                    // 显示创建日期
+                    Text("创建时间：\(task.createdDate, formatter: dateFormatter)")
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(task.isDeferred ? .red : .secondary)
+                    
+                    // 显示截止日期（如果有）- 移到创建日期的下方
+                    if let dueDate = task.dueDate {
+                        Text("截止日期：\(dueDate, formatter: dateFormatter)")
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                    }
                     
                     if task.isCompleted, let completedTime = task.completedTime {
                         Text("完成时间：\(completedTime, formatter: dateFormatter)")
                             .font(.caption2)
                             .foregroundColor(.green)
                     }
-                    
-                    Text("创建时间：\(task.createdDate, formatter: dateFormatter)")
-                        .font(.caption2)
-                        .foregroundColor(task.isDeferred ? .red : .secondary)
                 }
                 .padding(.leading, 32)
                 .transition(.asymmetric(
@@ -144,11 +150,28 @@ struct TodoItemCell: View {
                 ))
             }
         }
-        .padding(16)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .padding(.vertical, 16)
+        .padding(.horizontal, 20)
+        // 在深色模式下使用纯黑色背景，浅色模式下保持原来的背景色
+        .background(colorScheme == .dark ? Color.black : Color(.secondarySystemGroupedBackground))
         .contentShape(Rectangle())
+        .overlay(
+            // 自定义分隔线，高度更小，从中间到两边渐变透明
+            LinearGradient(
+                gradient: Gradient(stops: [
+                    .init(color: Color.clear, location: 0),
+                    .init(color: Color.gray.opacity(0.3), location: 0.1),
+                    .init(color: Color.gray.opacity(0.5), location: 0.5),
+                    .init(color: Color.gray.opacity(0.3), location: 0.9),
+                    .init(color: Color.clear, location: 1)
+                ]),
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(height: 0.5) // 缩小高度
+            .padding(.horizontal, 10), // 让两侧有一定的内边距
+            alignment: .bottom
+        )
         .onTapGesture {
             // 使用本地动画，不影响外部
             withAnimation(.easeInOut(duration: 0.35)) {

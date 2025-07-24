@@ -28,6 +28,7 @@ struct ContentView: View {
     @State private var isExpandedDayView = true // 日视图展开状态 - 默认展开
     @State private var selectedDaySubView: DaySubViewType = .planning // 日视图子功能选择
     @StateObject private var planningViewModel = PlanningViewModel() // 添加PlanningViewModel实例
+    @State private var showPlanningDateBar = true // 控制计划视图日期栏显示/隐藏
     
     enum MainTab: Int, CaseIterable {
         case timeline = 0
@@ -74,38 +75,46 @@ struct ContentView: View {
     var body: some View {
         ZStack(alignment: .top) {
             TabView(selection: $selectedTab) {
+                // 时间线视图
+                TimelineView(
+                    selectedDate: $timelineSelectedDate
+                )
+                .tag(MainTab.timeline)
+                
                 // 计划视图
                 ZStack(alignment: .top) {
                     PlanningView(
                         selectedDate: $planningSelectedDate,
                         selectedViewType: $planningViewType,
-                        selectedDaySubView: $selectedDaySubView
+                        selectedDaySubView: $selectedDaySubView,
+                        showDateBar: $showPlanningDateBar
                     )
                     .environmentObject(dataManager)
                     
-                    // 悬浮日期栏
-                    PlanningFloatingDateBar(
-                        selectedDate: $planningSelectedDate,
-                        selectedViewType: $planningViewType,
-                        showingDatePicker: $showingPlanningDatePicker,
-                        isExpanded: $isExpandedDayView,
-                        selectedSubView: $selectedDaySubView
-                    )
-                    .environmentObject(planningViewModel) // 传递PlanningViewModel
-                    .padding(.top, 96) // 从8增加到28，下移20pt
-                    .opacity(isExpandedDayView ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.3), value: isExpandedDayView)
+                    // 悬浮日期栏 - 不再直接显示，而是通过BlurAnimationWrapper
+                    VStack {
+                        Spacer()
+                            .frame(height: 96) // 保持原有的顶部间距
+                        
+                        BlurAnimationWrapper(isVisible: selectedTab == .planning && showPlanningDateBar) {
+                            PlanningFloatingDateBar(
+                                selectedDate: $planningSelectedDate,
+                                selectedViewType: $planningViewType,
+                                showingDatePicker: $showingPlanningDatePicker,
+                                isExpanded: $isExpandedDayView,
+                                selectedSubView: $selectedDaySubView
+                            )
+                            .environmentObject(planningViewModel) // 传递PlanningViewModel
+                        }
+                        
+                        Spacer()
+                    }
                     .zIndex(1)
                 }
                 .tabItem {
                     Label("计划", systemImage: "list.bullet")
                 }
                 .tag(MainTab.planning)
-                
-                TimelineView(
-                    selectedDate: $timelineSelectedDate
-                )
-                .tag(MainTab.timeline)
                 
                 CheckInView()
                     .tag(MainTab.checkin)
@@ -200,6 +209,14 @@ struct ContentView: View {
             // 当计时器状态变为空闲时，隐藏底部计时条
             if newValue == .idle {
                 showingBottomTimerBar = false
+            }
+        }
+        .onChange(of: selectedTab) { oldValue, newValue in
+            // 切换到计划视图时，确保日期栏显示
+            if newValue == .planning {
+                withAnimation(.spring(response: 0.8, dampingFraction: 0.75, blendDuration: 0.2)) {
+                    showPlanningDateBar = true
+                }
             }
         }
     }
@@ -437,8 +454,15 @@ struct BlurAnimationWrapper<Content: View>: View {
         content
             .blur(radius: isVisible ? 0 : 12) // 更强的模糊效果
             .opacity(isVisible ? 1 : 0)
-            .scaleEffect(isVisible ? 1 : 0.9) // 轻微缩放
-            .animation(.spring(response: 0.6, dampingFraction: 0.8, blendDuration: 0), value: isVisible) // 使用弹簧动画
+            .scaleEffect(isVisible ? 1 : 0.92) // 轻微缩放
+            .animation(
+                .spring(
+                    response: 0.8, // 延长动画时间，原为0.6
+                    dampingFraction: 0.75, // 减小阻尼，使动画更加平滑，原为0.8
+                    blendDuration: 0.2 // 增加混合时间，使过渡更平滑，原为0
+                ),
+                value: isVisible
+            ) // 使用弹簧动画
     }
 }
 

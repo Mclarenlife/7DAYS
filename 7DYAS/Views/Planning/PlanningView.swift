@@ -16,6 +16,9 @@ struct PlanningView: View {
     @State private var showingNewTask = false
     @State private var showCompleted = false
     
+    // 添加日期栏显示状态
+    @Binding var showDateBar: Bool
+    
     enum PlanningViewType: String, CaseIterable {
         case day = "日"
         case week = "周"
@@ -37,8 +40,12 @@ struct PlanningView: View {
             Group {
                 switch selectedViewType {
                 case .day:
-                    DayPlanningView(selectedDate: selectedDate, selectedSubView: selectedDaySubView)
-                        .environmentObject(viewModel)
+                    DayPlanningView(
+                        selectedDate: selectedDate,
+                        selectedSubView: selectedDaySubView,
+                        showDateBar: $showDateBar
+                    )
+                    .environmentObject(viewModel)
                 case .week:
                     WeekPlanningView(selectedDate: selectedDate)
                         .environmentObject(viewModel)
@@ -66,6 +73,8 @@ struct PlanningView: View {
         }
         .onAppear {
             viewModel.reloadTasks()
+            // 确保首次显示时日期栏可见
+            showDateBar = true
         }
         .environmentObject(viewModel) // 将viewModel作为环境对象传递给子视图
     }
@@ -321,7 +330,8 @@ struct YearPlanningView: View {
     PlanningView(
         selectedDate: .constant(Date()),
         selectedViewType: .constant(.day),
-        selectedDaySubView: .constant(.planning)
+        selectedDaySubView: .constant(.planning),
+        showDateBar: .constant(true)
     )
     .environmentObject(DataManager.shared)
 }
