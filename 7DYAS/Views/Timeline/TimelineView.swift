@@ -297,7 +297,7 @@ struct FocusSessionCard: View {
     @State private var showingEditSheet = false
     @State private var showingDeleteAlert = false
     
-    private var relatedTask: Task? {
+    private var relatedTask: TodoTask? {
         guard let taskId = session.relatedTask else { return nil }
         return dataManager.tasks.first { $0.id == taskId }
     }
@@ -659,7 +659,7 @@ struct FocusSessionPreview: View {
     let session: FocusSession
     @EnvironmentObject var dataManager: DataManager
     
-    private var relatedTask: Task? {
+    private var relatedTask: TodoTask? {
         guard let taskId = session.relatedTask else { return nil }
         return dataManager.tasks.first { $0.id == taskId }
     }

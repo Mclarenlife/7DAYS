@@ -34,7 +34,7 @@ struct DayPlanningView: View {
     private var currentCycle: TaskCycle { .day }
     
     // 辅助方法：处理未完成任务标记为完成
-    private func handleTaskCompletion(_ task: Task) {
+    private func handleTaskCompletion(_ task: TodoTask) {
         if !task.isCompleted {
             // 添加淡出效果
             withAnimation(.easeInOut(duration: 0.5)) {
@@ -56,7 +56,7 @@ struct DayPlanningView: View {
     }
     
     // 辅助方法：处理已完成任务取消完成
-    private func handleCompletedTaskToggle(_ task: Task) {
+    private func handleCompletedTaskToggle(_ task: TodoTask) {
         if task.isCompleted {
             // 添加淡出效果
             withAnimation(.easeInOut(duration: 0.5)) {

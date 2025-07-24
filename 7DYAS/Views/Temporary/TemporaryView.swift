@@ -185,7 +185,7 @@ struct TemporaryIdeaCard: View {
     }
     
     private func convertToTask() {
-        let task = Task(
+        let task = TodoTask(
             title: String(idea.content.prefix(50)), // 取前50个字符作为标题
             content: idea.content,
             tags: idea.tags,
@@ -203,7 +203,7 @@ struct NewIdeaView: View {
     
     @State private var content = ""
     @State private var selectedTags: [String] = []
-    @State private var selectedPriority: Task.TaskPriority = .medium
+    @State private var selectedPriority: TodoTask.TaskPriority = .medium
     @State private var newTagName = ""
     @State private var showingTagInput = false
     
@@ -228,7 +228,7 @@ struct NewIdeaView: View {
                 Form {
                     Section(header: Text("优先级")) {
                         Picker("优先级", selection: $selectedPriority) {
-                            ForEach(Task.TaskPriority.allCases, id: \.self) { priority in
+                            ForEach(TodoTask.TaskPriority.allCases, id: \.self) { priority in
                                 HStack {
                                     Circle()
                                         .fill(priority.color)

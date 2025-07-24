@@ -217,7 +217,7 @@ struct DateNavigationView: View {
 // 删除原有的DayPlanningView定义，避免重复声明
 
 struct TaskCard: View {
-    let task: Task
+    let task: TodoTask
     @EnvironmentObject var dataManager: DataManager
     @State private var showingTaskDetail = false
     

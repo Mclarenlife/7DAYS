@@ -55,7 +55,7 @@ struct TodayOverviewSection: View {
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var timerService: TimerService
     
-    private var todayTasks: [Task] {
+    private var todayTasks: [TodoTask] {
         dataManager.getTasksForDate(Date())
     }
     

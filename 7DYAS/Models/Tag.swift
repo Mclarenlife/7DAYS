@@ -86,9 +86,9 @@ struct TemporaryIdea: Identifiable, Codable {
     var tags: [String]
     var createdDate: Date
     var isArchived: Bool
-    var priority: Task.TaskPriority
+    var priority: TodoTask.TaskPriority
     
-    init(content: String, tags: [String] = [], priority: Task.TaskPriority = .medium) {
+    init(content: String, tags: [String] = [], priority: TodoTask.TaskPriority = .medium) {
         self.content = content
         self.tags = tags
         self.createdDate = Date()

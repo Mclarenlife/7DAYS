@@ -3,7 +3,7 @@ import SwiftUI
 import Combine
 
 class PlanningViewModel: ObservableObject {
-    @Published var tasks: [Task] = []
+    @Published var tasks: [TodoTask] = []
     @Published var showCompleted: Bool = false
     @Published var expandedTaskIDs: Set<UUID> = []
     @Published var lastAddedTaskID: UUID? = nil // 最近添加的任务ID
@@ -26,13 +26,13 @@ class PlanningViewModel: ObservableObject {
         self.tasks = dataManager.tasks
     }
     
-    func addTask(_ task: Task) {
+    func addTask(_ task: TodoTask) {
         dataManager.addTask(task)
         lastAddedTaskID = task.id // 记录最近添加的任务ID
         reloadTasks()
     }
     
-    func toggleTaskCompletion(_ task: Task) {
+    func toggleTaskCompletion(_ task: TodoTask) {
         dataManager.toggleTaskCompletion(task)
         // 强制刷新任务列表，确保视图更新
         DispatchQueue.main.async {
@@ -41,7 +41,7 @@ class PlanningViewModel: ObservableObject {
         }
     }
     
-    func toggleExpand(_ task: Task) {
+    func toggleExpand(_ task: TodoTask) {
         if expandedTaskIDs.contains(task.id) {
             expandedTaskIDs.remove(task.id)
         } else {
@@ -49,7 +49,7 @@ class PlanningViewModel: ObservableObject {
         }
     }
     
-    func tasksFor(date: Date, type: TaskType, cycle: TaskCycle) -> [Task] {
+    func tasksFor(date: Date, type: TaskType, cycle: TaskCycle) -> [TodoTask] {
         // 支持多周期、多日期、延期、每日循环等逻辑
         return tasks.filter { task in
             guard task.type == type, task.cycle == cycle else { return false }
@@ -88,11 +88,11 @@ class PlanningViewModel: ObservableObject {
         }
     }
     
-    func completedTasksFor(date: Date, type: TaskType, cycle: TaskCycle) -> [Task] {
+    func completedTasksFor(date: Date, type: TaskType, cycle: TaskCycle) -> [TodoTask] {
         return tasksFor(date: date, type: type, cycle: cycle).filter { $0.isCompleted }
     }
     
-    func uncompletedTasksFor(date: Date, type: TaskType, cycle: TaskCycle) -> [Task] {
+    func uncompletedTasksFor(date: Date, type: TaskType, cycle: TaskCycle) -> [TodoTask] {
         return tasksFor(date: date, type: type, cycle: cycle).filter { !$0.isCompleted }
     }
     

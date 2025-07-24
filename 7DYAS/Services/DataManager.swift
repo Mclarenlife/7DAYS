@@ -11,7 +11,7 @@ import Combine
 class DataManager: ObservableObject {
     static let shared = DataManager()
     
-    @Published public var tasks: [Task] = []
+    @Published public var tasks: [TodoTask] = []
     @Published public var focusSessions: [FocusSession] = []
     @Published public var checkIns: [CheckIn] = []
     @Published public var tags: [Tag] = []
@@ -46,7 +46,7 @@ class DataManager: ObservableObject {
     
     private func loadTasks() {
         if let data = userDefaults.data(forKey: Keys.tasks),
-           let decodedTasks = try? JSONDecoder().decode([Task].self, from: data) {
+           let decodedTasks = try? JSONDecoder().decode([TodoTask].self, from: data) {
             tasks = decodedTasks
         }
     }
@@ -124,24 +124,24 @@ class DataManager: ObservableObject {
     }
     
     // MARK: - Task Operations
-    func addTask(_ task: Task) {
+    func addTask(_ task: TodoTask) {
         tasks.append(task)
         saveTasks()
     }
     
-    func updateTask(_ task: Task) {
+    func updateTask(_ task: TodoTask) {
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             tasks[index] = task
             saveTasks()
         }
     }
     
-    func deleteTask(_ task: Task) {
+    func deleteTask(_ task: TodoTask) {
         tasks.removeAll { $0.id == task.id }
         saveTasks()
     }
     
-    func toggleTaskCompletion(_ task: Task) {
+    func toggleTaskCompletion(_ task: TodoTask) {
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             tasks[index].isCompleted.toggle()
             
@@ -353,7 +353,7 @@ class DataManager: ObservableObject {
     }
     
     // MARK: - Helper Methods
-    func getTasksForDate(_ date: Date) -> [Task] {
+    func getTasksForDate(_ date: Date) -> [TodoTask] {
         return tasks.filter { task in
             Calendar.current.isDate(task.createdDate, inSameDayAs: date)
         }

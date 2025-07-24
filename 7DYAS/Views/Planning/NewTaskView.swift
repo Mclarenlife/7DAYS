@@ -13,7 +13,7 @@ struct NewTaskView: View {
     
     @State private var title = ""
     @State private var content = ""
-    @State private var selectedPriority: Task.TaskPriority = .low
+    @State private var selectedPriority: TodoTask.TaskPriority = .low
     @State private var selectedTags: [String] = []
     @State private var dueDate: Date?
     @State private var hasDueDate = false
@@ -99,7 +99,7 @@ struct NewTaskView: View {
     }
     
     private func saveTask() {
-        let task = Task(
+        let task = TodoTask(
             title: title,
             content: content,
             tags: selectedTags,
@@ -290,7 +290,7 @@ extension NewTaskView {
     
     private var prioritySection: some View {
         Picker("优先级", selection: $selectedPriority) {
-            ForEach(Task.TaskPriority.allCases, id: \.self) { priority in
+            ForEach(TodoTask.TaskPriority.allCases, id: \.self) { priority in
                 HStack {
                     Circle().fill(priority.color).frame(width: 12, height: 12)
                     Text(priority.rawValue)

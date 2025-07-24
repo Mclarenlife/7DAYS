@@ -123,7 +123,7 @@ struct GlobalSearchView: View {
     private func getMatchedText(_ item: Any) -> String {
         let query = searchText.lowercased()
         
-        if let task = item as? Task {
+        if let task = item as? TodoTask {
             if task.title.lowercased().contains(query) {
                 return task.title
             } else if task.content.lowercased().contains(query) {
@@ -156,7 +156,7 @@ struct SearchResult: Identifiable {
     let matchedText: String
     
     var createdDate: Date {
-        if let task = item as? Task {
+        if let task = item as? TodoTask {
             return task.createdDate
         } else if let idea = item as? TemporaryIdea {
             return idea.createdDate

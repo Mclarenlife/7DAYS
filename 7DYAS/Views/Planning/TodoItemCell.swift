@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct TodoItemCell: View {
-    let task: Task
+    let task: TodoTask
     let expanded: Bool
     let onExpand: () -> Void
     let onCheck: () -> Void
@@ -12,7 +12,7 @@ struct TodoItemCell: View {
     @Environment(\.colorScheme) private var colorScheme
     
     // 添加初始化方法，同步外部和内部状态
-    init(task: Task, expanded: Bool, onExpand: @escaping () -> Void, onCheck: @escaping () -> Void) {
+    init(task: TodoTask, expanded: Bool, onExpand: @escaping () -> Void, onCheck: @escaping () -> Void) {
         self.task = task
         self.expanded = expanded
         self.onExpand = onExpand

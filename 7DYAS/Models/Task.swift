@@ -8,7 +8,7 @@
 import Foundation
 import SwiftUI
 
-struct Task: Identifiable, Codable {
+struct TodoTask: Identifiable, Codable {
     var id = UUID()
     var title: String
     var content: String

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct TaskDetailView: View {
-    let task: Task
+    let task: TodoTask
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var dataManager: DataManager
     @State private var showingEditView = false
@@ -238,18 +238,18 @@ struct InfoRow: View {
 }
 
 struct EditTaskView: View {
-    let task: Task
+    let task: TodoTask
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var dataManager: DataManager
     
     @State private var title: String
     @State private var content: String
-    @State private var selectedPriority: Task.TaskPriority
+    @State private var selectedPriority: TodoTask.TaskPriority
     @State private var selectedTags: [String]
     @State private var dueDate: Date?
     @State private var hasDueDate: Bool
     
-    init(task: Task) {
+    init(task: TodoTask) {
         self.task = task
         _title = State(initialValue: task.title)
         _content = State(initialValue: task.content)
@@ -277,7 +277,7 @@ struct EditTaskView: View {
                 
                 Section(header: Text("优先级")) {
                     Picker("优先级", selection: $selectedPriority) {
-                        ForEach(Task.TaskPriority.allCases, id: \.self) { priority in
+                        ForEach(TodoTask.TaskPriority.allCases, id: \.self) { priority in
                             HStack {
                                 Circle()
                                     .fill(priority.color)
@@ -328,6 +328,6 @@ struct EditTaskView: View {
 }
 
 #Preview {
-    TaskDetailView(task: Task(title: "示例任务", content: "这是一个示例任务的描述内容"))
+    TaskDetailView(task: TodoTask(title: "示例任务", content: "这是一个示例任务的描述内容"))
         .environmentObject(DataManager.shared)
 }

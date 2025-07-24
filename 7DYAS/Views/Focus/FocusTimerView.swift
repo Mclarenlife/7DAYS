@@ -14,7 +14,7 @@ struct FocusTimerView: View {
     
     @State private var sessionTitle = ""
     @State private var selectedTags: [String] = []
-    @State private var relatedTask: Task?
+    @State private var relatedTask: TodoTask?
     @State private var notes = ""
     @State private var showingTaskPicker = false
     @State private var showingStopAlert = false
@@ -79,7 +79,7 @@ struct FocusTimerView: View {
 struct StartSessionView: View {
     @Binding var sessionTitle: String
     @Binding var selectedTags: [String]
-    @Binding var relatedTask: Task?
+    @Binding var relatedTask: TodoTask?
     @Binding var showingTaskPicker: Bool
     let onStart: () -> Void
     
@@ -310,11 +310,11 @@ struct RunningSessionView: View {
 }
 
 struct TaskPickerView: View {
-    @Binding var selectedTask: Task?
+    @Binding var selectedTask: TodoTask?
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var dataManager: DataManager
     
-    private var incompleteTasks: [Task] {
+    private var incompleteTasks: [TodoTask] {
         dataManager.tasks.filter { !$0.isCompleted }
     }
     
