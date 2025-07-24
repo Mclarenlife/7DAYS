@@ -118,8 +118,6 @@ struct DayPlanningView: View {
                         
                         // 已完成任务列表
                         if !viewModel.completedTasksFor(date: selectedDate, type: currentTaskType, cycle: currentCycle).isEmpty {
-                            Divider().padding(.vertical, 8)
-                            
                             // 展开/收起按钮
                             Button(action: {
                                 withAnimation(.easeInOut(duration: 0.35)) {
@@ -134,6 +132,7 @@ struct DayPlanningView: View {
                                 .foregroundColor(.secondary)
                             }
                             .padding(.vertical, 8)
+                            .padding(.top, 26) // 添加上边距
                             
                             // 已完成任务列表
                             if showCompletedLocal {

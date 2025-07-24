@@ -16,6 +16,9 @@ struct ContentView: View {
     @State private var showingGlobalSearch = false
     @State private var showingBottomTimerBar = false // 底部计时条状态
     @State private var showingSettings = false // 添加设置弹窗状态
+    @State private var tabScrollTarget: MainTab? = nil // 滑动目标tab
+    @State private var isFirstAppearance: Bool = true // 追踪应用是否首次显示
+    @State private var hasSwitchedToPlanning: Bool = false // 追踪是否已切换到计划视图
     
     // 时间线日期栏状态
     @State private var timelineSelectedDate = Date()
@@ -96,7 +99,8 @@ struct ContentView: View {
                         Spacer()
                             .frame(height: 96) // 保持原有的顶部间距
                         
-                        BlurAnimationWrapper(isVisible: selectedTab == .planning && showPlanningDateBar) {
+                        // 修改isVisible条件，确保首次切换时能显示动画
+                        BlurAnimationWrapper(isVisible: selectedTab == .planning && (showPlanningDateBar || !hasSwitchedToPlanning)) {
                             PlanningFloatingDateBar(
                                 selectedDate: $planningSelectedDate,
                                 selectedViewType: $planningViewType,
@@ -126,10 +130,35 @@ struct ContentView: View {
                     .tag(MainTab.temporary)
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+            .animation(.easeInOut(duration: 1.5), value: selectedTab) // 保留用户修改的动画时间
             
             // 悬浮顶部标签栏
             VStack {
-                TopTabBar(selectedTab: $selectedTab, isFloating: true)
+                TopTabBar(
+                    selectedTab: $selectedTab,
+                    isFloating: true,
+                    onTabSelected: { tab in
+                        // 当选择新标签时，先设置滑动目标
+                        tabScrollTarget = tab
+                        
+                        // 使用动画滑动到选定的标签
+                        withAnimation(.easeInOut(duration: 1.5)) {
+                            selectedTab = tab
+                        }
+                        
+                        // 如果是切换到计划视图，设置标志位
+                        if tab == .planning {
+                            hasSwitchedToPlanning = true
+                            
+                            // 确保日期栏可见
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                withAnimation(.spring(response: 0.8, dampingFraction: 0.75, blendDuration: 0.2)) {
+                                    showPlanningDateBar = true
+                                }
+                            }
+                        }
+                    }
+                )
                 
                 Spacer()
             }
@@ -214,10 +243,19 @@ struct ContentView: View {
         .onChange(of: selectedTab) { oldValue, newValue in
             // 切换到计划视图时，确保日期栏显示
             if newValue == .planning {
-                withAnimation(.spring(response: 0.8, dampingFraction: 0.75, blendDuration: 0.2)) {
-                    showPlanningDateBar = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    withAnimation(.spring(response: 0.8, dampingFraction: 0.75, blendDuration: 0.2)) {
+                        showPlanningDateBar = true
+                    }
                 }
             }
+            
+            // 清除滑动目标，表示滑动已完成
+            tabScrollTarget = nil
+        }
+        .onAppear {
+            // 应用首次显示时，设置状态
+            isFirstAppearance = true
         }
     }
 }
@@ -227,6 +265,7 @@ struct TopTabBar: View {
     @Binding var selectedTab: ContentView.MainTab
     @EnvironmentObject var dataManager: DataManager
     let isFloating: Bool
+    let onTabSelected: (ContentView.MainTab) -> Void
     @State private var showingSettings = false // 添加设置弹窗状态
     
     @State private var currentStatIndex = 0
@@ -290,7 +329,10 @@ struct TopTabBar: View {
                             TabButton(
                                 tab: tab,
                                 isSelected: selectedTab == tab,
-                                action: { selectedTab = tab }
+                                action: { 
+                                    // 使用滑动切换而不是直接更改状态
+                                    onTabSelected(tab)
+                                }
                             )
                             .id(tab) // 给每个TabButton设置唯一id
                         }
@@ -329,7 +371,6 @@ struct TopTabBar: View {
             .clipShape(UnevenRoundedRectangle(cornerRadii: .init(bottomLeading: 16, bottomTrailing: 16)))
             .ignoresSafeArea(.all, edges: .top) // 确保背景延伸到状态栏
         }
-        // .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4) // 阴影已移除
         .sheet(isPresented: $showingSettings) {
             SettingsView()
                 .environmentObject(dataManager)
@@ -2171,4 +2212,5 @@ struct TimerSettingsView: View {
 
 #Preview {
     ContentView()
+        .environmentObject(DataManager.shared)
 }
