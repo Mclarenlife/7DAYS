@@ -30,9 +30,17 @@ struct NewTaskView: View {
         NavigationView {
             Form {
                 typeAndCycleSection
-                Section(header: Text("基本信息")) {
-                    basicInfoSection
+                
+                // 标题部分独立成一个Section
+                Section(header: Text("标题")) {
+                    titleSection
                 }
+                
+                // 描述部分独立成一个Section
+                Section(header: Text("描述")) {
+                    descriptionSection
+                }
+                
                 Section(header: Text("优先级")) {
                     prioritySection
                 }
@@ -51,16 +59,25 @@ struct NewTaskView: View {
                     atItemsSection
                 }
             }
-            .navigationTitle("新建待办")
-            .navigationBarItems(
-                leading: Button("取消") {
-                    presentationMode.wrappedValue.dismiss()
-                },
-                trailing: Button("保存") {
-                    saveTask()
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("新建计划")
+                        .font(.headline)
+                        .foregroundColor(.primary)
                 }
-                .disabled(title.isEmpty)
-            )
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("取消") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("保存") {
+                        saveTask()
+                    }
+                    .disabled(title.isEmpty)
+                }
+            }
         }
         .alert("添加标签", isPresented: $showingTagInput) {
             TextField("标签名称", text: $newTagName)
@@ -258,13 +275,19 @@ extension NewTaskView {
         }
         .padding(.vertical, 4)
     }
-    private var basicInfoSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            TextField("任务标题", text: $title)
-            Text("描述").font(.caption).foregroundColor(.secondary)
-            TextEditor(text: $content).frame(minHeight: 80)
-        }
+    
+    private var titleSection: some View {
+        TextField("计划标题", text: $title)
+            .font(.body)
+            .padding(.vertical, 4)
     }
+    
+    private var descriptionSection: some View {
+        TextEditor(text: $content)
+            .frame(minHeight: 100)
+            .padding(.vertical, 4)
+    }
+    
     private var prioritySection: some View {
         Picker("优先级", selection: $selectedPriority) {
             ForEach(Task.TaskPriority.allCases, id: \.self) { priority in
@@ -275,6 +298,7 @@ extension NewTaskView {
             }
         }.pickerStyle(SegmentedPickerStyle())
     }
+    
     private var dueDateSection: some View {
         VStack {
             Toggle("设置截止日期", isOn: $hasDueDate)
@@ -283,6 +307,7 @@ extension NewTaskView {
             }
         }
     }
+    
     private var tagSection: some View {
         VStack {
             if !selectedTags.isEmpty {
@@ -297,6 +322,7 @@ extension NewTaskView {
             Button("添加标签") { showingTagInput = true }
         }
     }
+    
     private var existingTagsSection: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 8) {
             ForEach(viewModel.tags, id: \.id) { tag in
@@ -310,6 +336,7 @@ extension NewTaskView {
             }
         }
     }
+    
     private var atItemsSection: some View {
         VStack {
             HStack {

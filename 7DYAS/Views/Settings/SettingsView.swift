@@ -570,7 +570,7 @@ struct TagManagerView: View {
                         }
                         
                         // 创建标签
-                        Section(header: Text("创建标签")) {
+                        Section {
                             if isCreatingTag {
                                 // 创建标签表单
                                 VStack(alignment: .leading, spacing: 12) {
@@ -622,7 +622,7 @@ struct TagManagerView: View {
                         }
                         
                         // 创建标签夹
-                        Section(header: Text("创建标签夹")) {
+                        Section {
                             if isCreatingFolder {
                                 // 创建标签夹表单
                                 VStack(alignment: .leading, spacing: 12) {
