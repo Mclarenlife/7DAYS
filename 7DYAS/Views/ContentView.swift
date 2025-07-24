@@ -418,6 +418,11 @@ struct FloatingActionBar: View {
     let onIdeaAction: () -> Void
     let onFocusAction: () -> Void
     let onSearchAction: () -> Void
+    @EnvironmentObject var timerService: TimerService
+    
+    private var isTimerActive: Bool {
+        timerService.sessionState == .running || timerService.sessionState == .paused
+    }
     
     var body: some View {
         HStack(spacing: 20) {
@@ -427,45 +432,53 @@ struct FloatingActionBar: View {
                     .font(.title2)
                     .foregroundColor(.primary)
                     .frame(width: 50, height: 50)
-                    .background(.ultraThinMaterial, in: Circle())
+                    .background(Circle().fill(.ultraThinMaterial))
                     .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
             }
             
             // 中间操作按钮组
-            HStack(spacing: 0) {
-                // 想法按钮
-                Button(action: onIdeaAction) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "lightbulb.fill")
-                            .font(.system(size: 16))
-                        Text("想法")
-                            .font(.system(size: 15, weight: .medium))
-                    }
-                    .foregroundColor(.primary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ZStack {
+                // 背景
+                if isTimerActive {
+                    RoundedRectangle(cornerRadius: 25)
+                        .fill(Material.thick)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 25)
+                                .fill(Color.red.opacity(0.3))
+                        )
+                } else {
+                    RoundedRectangle(cornerRadius: 25)
+                        .fill(Material.ultraThinMaterial)
                 }
                 
-                // 分割线
-                Rectangle()
-                    .fill(Color.secondary.opacity(0.3))
-                    .frame(width: 1)
-                    .padding(.vertical, 8)
-                
-                // 专注按钮  
-                Button(action: onFocusAction) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "timer")
-                            .font(.system(size: 16))
-                        Text("专注")
+                // 内容
+                HStack(spacing: 0) {
+                    // 想法按钮
+                    Button(action: onIdeaAction) {
+                        Text("想法")
                             .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                    .foregroundColor(.primary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    
+                    // 分割线
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.3))
+                        .frame(width: 1)
+                        .padding(.vertical, 8)
+                    
+                    // 专注按钮 - 根据计时器状态变化样式  
+                    Button(action: onFocusAction) {
+                        Text(isTimerActive ? "专注中" : "专注")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(isTimerActive ? .white : .primary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
             }
             .frame(width: 140, height: 50)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 25))
-            .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+            .animation(.easeInOut(duration: 0.3), value: isTimerActive)
+            .shadow(color: isTimerActive ? .red.opacity(0.3) : .black.opacity(0.1), radius: 8, x: 0, y: 4)
             
             // 搜索按钮
             Button(action: onSearchAction) {
@@ -473,7 +486,7 @@ struct FloatingActionBar: View {
                     .font(.title2)
                     .foregroundColor(.primary)
                     .frame(width: 50, height: 50)
-                    .background(.ultraThinMaterial, in: Circle())
+                    .background(Circle().fill(.ultraThinMaterial))
                     .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
             }
         }
@@ -925,6 +938,7 @@ struct BottomFocusSheet: View {
     @Binding var showingBottomTimerBar: Bool
     @EnvironmentObject var timerService: TimerService
     @EnvironmentObject var dataManager: DataManager
+    @Environment(\.colorScheme) private var colorScheme
     
     @State private var sessionTitle = ""
     @State private var sessionDescription = ""
@@ -952,15 +966,16 @@ struct BottomFocusSheet: View {
                     Spacer()
                     
                     VStack(spacing: 0) {
-                        // 拖拽指示器 - 电纸书风格
+                        // 拖拽指示器 - 黑白北欧风格
                         VStack {
                             Rectangle()
-                                .fill(Color.black.opacity(0.4))
-                                .frame(width: 40, height: 2)
+                                .fill(colorScheme == .dark ? Color.white.opacity(0.4) : Color.black.opacity(0.3))
+                                .frame(width: 40, height: 3)
+                                .cornerRadius(1.5)
                         }
                         .frame(height: 40) // 设置拖拽区域高度
                         .frame(maxWidth: .infinity) // 横向填满以便拖拽
-                        .background(Color(.systemGray6)) // 电纸书风格的浅灰背景
+                        .background(colorScheme == .dark ? Color.black : Color.white) // 黑白北欧风格背景
                         .contentShape(Rectangle()) // 确保整个区域都可以响应手势
                         .simultaneousGesture(
                             DragGesture(minimumDistance: 0)
@@ -1025,10 +1040,10 @@ struct BottomFocusSheet: View {
                     }
                     .background(
                         Rectangle()
-                            .fill(Color(.systemGray6)) // 电纸书风格的浅灰背景
+                            .fill(colorScheme == .dark ? Color.black : Color.white) // 黑白北欧风格背景
                             .overlay(
                                 Rectangle()
-                                    .stroke(Color.black.opacity(0.1), lineWidth: 1)
+                                    .stroke(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1), lineWidth: 1)
                             )
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 20)) // 确保内容不溢出圆角边界
@@ -1103,6 +1118,7 @@ struct BottomFocusSheet: View {
 // 计时器显示组件
 struct TimerDisplayView: View {
     @EnvironmentObject var timerService: TimerService
+    @Environment(\.colorScheme) private var colorScheme
     @State private var showingTimerSettings = false
     @AppStorage("circleTimeInterval") private var circleTimeInterval: TimeInterval = 1800 // 默认30分钟一圈
     @AppStorage("showHourFormat") private var showHourFormat = false // 时间格式：true=时:分:秒，false=分:秒
@@ -1130,44 +1146,42 @@ struct TimerDisplayView: View {
     
     var body: some View {
         VStack(spacing: 24) {
-            // 电纸书风格的计时器圆环
+            // 黑白北欧风格的计时器圆环
             ZStack {
-                // 外层装饰边框
+                // 外层背景圆
                 Circle()
-                    .stroke(Color.black, lineWidth: 2)
+                    .stroke(colorScheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.1), lineWidth: 1)
                     .frame(width: 220, height: 220)
                 
                 // 内层背景圆
                 Circle()
-                    .stroke(Color.black.opacity(0.1), lineWidth: 1)
+                    .stroke(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.15), lineWidth: 1)
                     .frame(width: 200, height: 200)
                 
-                // 进度圆环 - 简洁的黑色线条
+                // 进度圆环 - 简洁的线条
                 Circle()
                     .trim(from: 0, to: currentCircleProgress)
-                    .stroke(Color.black, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .stroke(colorScheme == .dark ? Color.white : Color.black, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                     .frame(width: 200, height: 200)
                     .rotationEffect(.degrees(-90))
                     .animation(.easeInOut(duration: 0.3), value: timerService.elapsedTime)
                 
                 // 中心内容区域
                 VStack(spacing: 8) {
-                    // 可点击的计时时间 - 电纸书风格字体
+                    // 可点击的计时时间 - 北欧风格字体
                     Button(action: {
                         showingTimerSettings = true
                     }) {
                         Text(getDisplayTime())
-                            .font(.system(size: 36, weight: .light, design: .monospaced))
-                            .foregroundColor(.black)
-                            .tracking(1) // 字符间距
+                            .font(.system(size: 36, weight: .medium, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
                     .buttonStyle(PlainButtonStyle())
                     
-                    // 状态文字 - 细线条字体
+                    // 状态文字 - 北欧简约风格
                     Text(getStatusText())
-                        .font(.system(size: 14, weight: .light))
-                        .foregroundColor(.black.opacity(0.7))
-                        .tracking(0.5)
+                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
                         .textCase(.uppercase)
                     
                     // 显示开始时间（如果有当前会话）
@@ -1177,61 +1191,54 @@ struct TimerDisplayView: View {
                             "开始于 \(formatStartTime(session.startTime))"
                         
                         Text(startTimeText)
-                            .font(.system(size: 10, weight: .light))
-                            .foregroundColor(.black.opacity(0.5))
-                            .tracking(0.5)
+                            .font(.system(size: 12, weight: .regular, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.5) : Color.black.opacity(0.5))
                     }
                 }
             }
             .padding(.top, 20)
             
-            // 电纸书风格的状态指示
+            // 黑白北欧风格的状态指示
             VStack(spacing: 16) {
-                // 运行状态指示 - 简洁的几何形状
-                HStack(spacing: 12) {
-                    // 状态指示器 - 方形而非圆形
-                    Rectangle()
+                // 运行状态指示
+                HStack(spacing: 10) {
+                    // 状态指示器 - 圆形 (更符合北欧风格)
+                    Circle()
                         .fill(getStatusIndicatorColor())
                         .frame(width: 8, height: 8)
                         .animation(.easeInOut(duration: 0.3), value: timerService.isRunning)
                     
                     Text(getStatusDisplayText())
-                        .font(.system(size: 12, weight: .light))
-                        .foregroundColor(.black.opacity(0.8))
-                        .tracking(1)
+                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                         .textCase(.uppercase)
                 }
                 
-                // 完成轮次显示 - 电纸书风格
+                // 完成轮次显示 - 北欧简约风格
                 if completedCircles > 0 {
                     VStack(spacing: 8) {
-                        Text("COMPLETED CYCLES")
-                            .font(.system(size: 10, weight: .light))
-                            .foregroundColor(.black.opacity(0.6))
-                            .tracking(1)
-                            .textCase(.uppercase)
+                        Text("已完成轮次")
+                            .font(.system(size: 12, weight: .regular, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                         
                         HStack(spacing: 6) {
                             ForEach(0..<min(completedCircles, 8), id: \.self) { _ in
-                                Rectangle()
-                                    .fill(Color.black)
+                                Circle()
+                                    .fill(colorScheme == .dark ? Color.white : Color.black)
                                     .frame(width: 6, height: 6)
                             }
                             
                             if completedCircles > 8 {
                                 Text("+\(completedCircles - 8)")
-                                    .font(.system(size: 10, weight: .light))
-                                    .foregroundColor(.black)
-                                    .tracking(0.5)
+                                    .font(.system(size: 12, weight: .regular, design: .rounded))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
                             }
                         }
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 10)
                     .padding(.horizontal, 16)
-                    .overlay(
-                        Rectangle()
-                            .stroke(Color.black.opacity(0.2), lineWidth: 1)
-                    )
+                    .background(colorScheme == .dark ? Color.black.opacity(0.3) : Color.black.opacity(0.05))
+                    .cornerRadius(10)
                 }
             }
         }
@@ -1295,15 +1302,17 @@ struct TimerDisplayView: View {
     }
     
     private func getStatusIndicatorColor() -> Color {
+        let baseColor = colorScheme == .dark ? Color.white : Color.black
+        
         guard let session = timerService.currentSession else {
-            return timerService.isRunning ? Color.black : Color.black.opacity(0.3)
+            return timerService.isRunning ? baseColor : baseColor.opacity(0.3)
         }
         
         let currentTime = Date()
         if session.startTime > currentTime {
-            return Color.black.opacity(0.5) // 等待状态用中等透明度
+            return baseColor.opacity(0.5) // 等待状态用中等透明度
         } else {
-            return timerService.isRunning ? Color.black : Color.black.opacity(0.3)
+            return timerService.isRunning ? baseColor : baseColor.opacity(0.3)
         }
     }
     
@@ -1325,6 +1334,7 @@ struct TimerDisplayView: View {
 struct TimerControlButtons: View {
     @EnvironmentObject var timerService: TimerService
     @EnvironmentObject var dataManager: DataManager
+    @Environment(\.colorScheme) private var colorScheme
     @State private var showingStopAlert = false
     @State private var stopNotes = ""
     
@@ -1337,7 +1347,7 @@ struct TimerControlButtons: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            // 主控制按钮 - 电纸书风格
+            // 主控制按钮 - 黑白北欧风格
             Button(action: {
                 // 检查是否在等待未来开始时间
                 if let session = timerService.currentSession, session.startTime > Date() {
@@ -1362,64 +1372,52 @@ struct TimerControlButtons: View {
                     }
                 }
             }) {
-                HStack(spacing: 12) {
-                    // 图标 - 简洁的几何形状
+                HStack(spacing: 10) {
+                    // 图标
                     if let session = timerService.currentSession, session.startTime > Date() {
                         // 等待状态显示立即开始图标
                         Image(systemName: "play.fill")
-                            .font(.system(size: 18, weight: .light))
+                            .font(.system(size: 16, weight: .semibold))
                     } else if timerService.isRunning {
-                        HStack(spacing: 3) {
-                            Rectangle()
-                                .fill(Color.white)
-                                .frame(width: 3, height: 16)
-                            Rectangle()
-                                .fill(Color.white)
-                                .frame(width: 3, height: 16)
-                        }
+                        Image(systemName: "pause.fill")
+                            .font(.system(size: 16, weight: .semibold))
                     } else {
-                        // 播放三角形
-                        Image(systemName: timerService.sessionState == .paused ? "play.fill" : "play.fill")
-                            .font(.system(size: 18, weight: .light))
+                        // 播放图标
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 16, weight: .semibold))
                     }
                     
                     Text(getMainButtonText())
-                        .font(.system(size: 16, weight: .light))
-                        .tracking(1.5)
-                        .textCase(.uppercase)
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
                 }
-                .foregroundColor(.white)
+                .foregroundColor(colorScheme == .dark ? Color.black : Color.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 54)
-                .background(Color.black)
-                .overlay(
-                    Rectangle()
-                        .stroke(Color.black, lineWidth: 2)
-                )
+                .frame(height: 50)
+                .background(colorScheme == .dark ? Color.white : Color.black)
+                .cornerRadius(10)
             }
             .buttonStyle(PlainButtonStyle())
             
-            // 辅助控制按钮 - 电纸书风格
+            // 辅助控制按钮 - 黑白北欧风格
             HStack(spacing: 16) {
                 // 重置按钮
                 Button(action: {
                     resetTimer()
                 }) {
-                    VStack(spacing: 4) {
+                    HStack(spacing: 8) {
                         Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 16, weight: .light))
-                        Text("RESET")
-                            .font(.system(size: 10, weight: .light))
-                            .tracking(1)
-                            .textCase(.uppercase)
+                            .font(.system(size: 14, weight: .medium))
+                        Text("重置")
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
                     }
-                    .foregroundColor(.black)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 54)
-                    .background(Color.white)
+                    .frame(height: 44)
+                    .background(colorScheme == .dark ? Color.black.opacity(0.2) : Color.black.opacity(0.05))
+                    .cornerRadius(10)
                     .overlay(
-                        Rectangle()
-                            .stroke(Color.black, lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1), lineWidth: 1)
                     )
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -1428,21 +1426,25 @@ struct TimerControlButtons: View {
                 Button(action: {
                     saveSession()
                 }) {
-                    VStack(spacing: 4) {
+                    HStack(spacing: 8) {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 16, weight: .light))
-                        Text("SAVE")
-                            .font(.system(size: 10, weight: .light))
-                            .tracking(1)
-                            .textCase(.uppercase)
+                            .font(.system(size: 14, weight: .medium))
+                        Text("保存")
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
                     }
-                    .foregroundColor(timerService.sessionState == .idle || timerService.elapsedTime < 1 ? .black.opacity(0.3) : .black)
+                    .foregroundColor(timerService.sessionState == .idle || timerService.elapsedTime < 1 ? 
+                        (colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3)) : 
+                        (colorScheme == .dark ? .white : .black))
                     .frame(maxWidth: .infinity)
-                    .frame(height: 54)
-                    .background(Color.white)
+                    .frame(height: 44)
+                    .background(colorScheme == .dark ? Color.black.opacity(0.2) : Color.black.opacity(0.05))
+                    .cornerRadius(10)
                     .overlay(
-                        Rectangle()
-                            .stroke(timerService.sessionState == .idle || timerService.elapsedTime < 1 ? Color.black.opacity(0.3) : Color.black, lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(timerService.sessionState == .idle || timerService.elapsedTime < 1 ? 
+                                (colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05)) : 
+                                (colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1)), 
+                                lineWidth: 1)
                     )
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -1543,149 +1545,129 @@ struct FocusInfoInputView: View {
     @Binding var description: String
     @Binding var selectedTags: [String]
     @Binding var relatedEvents: [String]
+    @Environment(\.colorScheme) private var colorScheme
     
     @State private var tagInput = ""
     @State private var eventInput = ""
     
     var body: some View {
         VStack(spacing: 24) {
-            // 专注标题 - 电纸书风格
-            VStack(alignment: .leading, spacing: 12) {
-                Text("FOCUS TITLE")
-                    .font(.system(size: 12, weight: .light))
-                    .foregroundColor(.black.opacity(0.7))
-                    .tracking(1)
-                    .textCase(.uppercase)
+            // 专注标题 - 黑白北欧风格
+            VStack(alignment: .leading, spacing: 10) {
+                Text("专注主题")
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
                 
-                TextField("What to focus on today?", text: $title)
-                    .font(.system(size: 16, weight: .light))
-                    .foregroundColor(.black)
+                TextField("今天要专注什么？", text: $title)
+                    .font(.system(size: 16, weight: .regular, design: .rounded))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.vertical, 12)
                     .padding(.horizontal, 16)
-                    .background(Color.white)
-                    .overlay(
-                        Rectangle()
-                            .stroke(Color.black.opacity(0.3), lineWidth: 1)
-                    )
+                    .background(colorScheme == .dark ? Color.black.opacity(0.3) : Color.black.opacity(0.05))
+                    .cornerRadius(10)
             }
             
-            // 描述 - 电纸书风格
-            VStack(alignment: .leading, spacing: 12) {
-                Text("DESCRIPTION")
-                    .font(.system(size: 12, weight: .light))
-                    .foregroundColor(.black.opacity(0.7))
-                    .tracking(1)
-                    .textCase(.uppercase)
+            // 描述 - 黑白北欧风格
+            VStack(alignment: .leading, spacing: 10) {
+                Text("描述")
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
                 
-                TextField("Specific content or goals", text: $description, axis: .vertical)
-                    .font(.system(size: 14, weight: .light))
-                    .foregroundColor(.black)
+                TextField("具体内容或目标", text: $description, axis: .vertical)
+                    .font(.system(size: 14, weight: .regular, design: .rounded))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                     .lineLimit(3...6)
                     .padding(.vertical, 12)
                     .padding(.horizontal, 16)
-                    .background(Color.white)
-                    .overlay(
-                        Rectangle()
-                            .stroke(Color.black.opacity(0.3), lineWidth: 1)
-                    )
+                    .background(colorScheme == .dark ? Color.black.opacity(0.3) : Color.black.opacity(0.05))
+                    .cornerRadius(10)
             }
             
-            // 标签系统 - 电纸书风格
-            VStack(alignment: .leading, spacing: 12) {
-                Text("TAGS #")
-                    .font(.system(size: 12, weight: .light))
-                    .foregroundColor(.black.opacity(0.7))
-                    .tracking(1)
-                    .textCase(.uppercase)
+            // 标签系统 - 黑白北欧风格
+            VStack(alignment: .leading, spacing: 10) {
+                Text("标签 #")
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
                 
-                EBookTagInputField(
+                NordicTagInputField(
                     input: $tagInput,
                     selectedTags: $selectedTags,
-                    placeholder: "Add tags like #work #study"
+                    placeholder: "添加标签，如 #工作 #学习",
+                    colorScheme: colorScheme
                 )
             }
             
-            // 事件系统 - 电纸书风格
-            VStack(alignment: .leading, spacing: 12) {
-                Text("RELATED EVENTS @")
-                    .font(.system(size: 12, weight: .light))
-                    .foregroundColor(.black.opacity(0.7))
-                    .tracking(1)
-                    .textCase(.uppercase)
+            // 事件系统 - 黑白北欧风格
+            VStack(alignment: .leading, spacing: 10) {
+                Text("相关事件 @")
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
                 
-                EBookEventInputField(
+                NordicEventInputField(
                     input: $eventInput,
                     selectedEvents: $relatedEvents,
-                    placeholder: "Related events like @meeting @project"
+                    placeholder: "相关事件，如 @会议 @项目",
+                    colorScheme: colorScheme
                 )
             }
         }
     }
 }
 
-// 电纸书风格标签输入组件
-struct EBookTagInputField: View {
+// 黑白北欧风格标签输入组件
+struct NordicTagInputField: View {
     @Binding var input: String
     @Binding var selectedTags: [String]
     let placeholder: String
+    let colorScheme: ColorScheme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 TextField(placeholder, text: $input)
-                    .font(.system(size: 14, weight: .light))
-                    .foregroundColor(.black)
+                    .font(.system(size: 14, weight: .regular, design: .rounded))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.vertical, 10)
                     .padding(.horizontal, 16)
-                    .background(Color.white)
-                    .overlay(
-                        Rectangle()
-                            .stroke(Color.black.opacity(0.3), lineWidth: 1)
-                    )
+                    .background(colorScheme == .dark ? Color.black.opacity(0.3) : Color.black.opacity(0.05))
+                    .cornerRadius(10)
                     .onSubmit {
                         addTag()
                     }
                 
-                Button("ADD", action: addTag)
-                    .font(.system(size: 10, weight: .light))
-                    .tracking(1)
-                    .textCase(.uppercase)
-                    .foregroundColor(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .black.opacity(0.3) : .black)
+                Button("添加", action: addTag)
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundColor(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 
+                        (colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3)) : 
+                        (colorScheme == .dark ? .white : .black))
                     .padding(.vertical, 10)
                     .padding(.horizontal, 16)
-                    .background(Color.white)
-                    .overlay(
-                        Rectangle()
-                            .stroke(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.black.opacity(0.3) : Color.black, lineWidth: 1)
-                    )
+                    .background(colorScheme == .dark ? Color.black.opacity(0.3) : Color.black.opacity(0.05))
+                    .cornerRadius(10)
                     .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             
-            // 已选择的标签 - 电纸书风格
+            // 已选择的标签 - 北欧风格
             if !selectedTags.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(selectedTags, id: \.self) { tag in
                         HStack {
                             Text("#\(tag)")
-                                .font(.system(size: 12, weight: .light))
-                                .foregroundColor(.black)
-                                .tracking(0.5)
+                                .font(.system(size: 14, weight: .regular, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
                             
                             Spacer()
                             
                             Button(action: { removeTag(tag) }) {
                                 Image(systemName: "xmark")
-                                    .font(.system(size: 10, weight: .light))
-                                    .foregroundColor(.black.opacity(0.6))
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                             }
                         }
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.white)
-                        .overlay(
-                            Rectangle()
-                                .stroke(Color.black.opacity(0.2), lineWidth: 1)
-                        )
+                        .padding(.vertical, 8)
+                        .background(colorScheme == .dark ? Color.black.opacity(0.3) : Color.black.opacity(0.05))
+                        .cornerRadius(8)
                     }
                 }
             }
@@ -1707,69 +1689,60 @@ struct EBookTagInputField: View {
     }
 }
 
-// 电纸书风格事件输入组件
-struct EBookEventInputField: View {
+// 黑白北欧风格事件输入组件
+struct NordicEventInputField: View {
     @Binding var input: String
     @Binding var selectedEvents: [String]
     let placeholder: String
+    let colorScheme: ColorScheme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 TextField(placeholder, text: $input)
-                    .font(.system(size: 14, weight: .light))
-                    .foregroundColor(.black)
+                    .font(.system(size: 14, weight: .regular, design: .rounded))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.vertical, 10)
                     .padding(.horizontal, 16)
-                    .background(Color.white)
-                    .overlay(
-                        Rectangle()
-                            .stroke(Color.black.opacity(0.3), lineWidth: 1)
-                    )
+                    .background(colorScheme == .dark ? Color.black.opacity(0.3) : Color.black.opacity(0.05))
+                    .cornerRadius(10)
                     .onSubmit {
                         addEvent()
                     }
                 
-                Button("ADD", action: addEvent)
-                    .font(.system(size: 10, weight: .light))
-                    .tracking(1)
-                    .textCase(.uppercase)
-                    .foregroundColor(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .black.opacity(0.3) : .black)
+                Button("添加", action: addEvent)
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundColor(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 
+                        (colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3)) : 
+                        (colorScheme == .dark ? .white : .black))
                     .padding(.vertical, 10)
                     .padding(.horizontal, 16)
-                    .background(Color.white)
-                    .overlay(
-                        Rectangle()
-                            .stroke(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.black.opacity(0.3) : Color.black, lineWidth: 1)
-                    )
+                    .background(colorScheme == .dark ? Color.black.opacity(0.3) : Color.black.opacity(0.05))
+                    .cornerRadius(10)
                     .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             
-            // 已选择的事件 - 电纸书风格
+            // 已选择的事件 - 北欧风格
             if !selectedEvents.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(selectedEvents, id: \.self) { event in
                         HStack {
                             Text("@\(event)")
-                                .font(.system(size: 12, weight: .light))
-                                .foregroundColor(.black)
-                                .tracking(0.5)
+                                .font(.system(size: 14, weight: .regular, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
                             
                             Spacer()
                             
                             Button(action: { removeEvent(event) }) {
                                 Image(systemName: "xmark")
-                                    .font(.system(size: 10, weight: .light))
-                                    .foregroundColor(.black.opacity(0.6))
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                             }
                         }
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.white)
-                        .overlay(
-                            Rectangle()
-                                .stroke(Color.black.opacity(0.2), lineWidth: 1)
-                        )
+                        .padding(.vertical, 8)
+                        .background(colorScheme == .dark ? Color.black.opacity(0.3) : Color.black.opacity(0.05))
+                        .cornerRadius(8)
                     }
                 }
             }
