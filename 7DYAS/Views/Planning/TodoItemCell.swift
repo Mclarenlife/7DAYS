@@ -50,41 +50,31 @@ struct TodoItemCell: View {
                                 .foregroundColor(.orange)
                                 .clipShape(Capsule())
                         }
-                        
-                        if task.isCompleted, let _ = task.completedTime {
-                            if let _ = task.createdDate as Date?, let duration = task.duration {
-                                let minutes = Int(duration) / 60
-                                let seconds = Int(duration) % 60
-                                Text("耗时\(minutes)分\(seconds)秒")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            } else {
-                                Text("已完成")
-                                    .font(.caption2)
-                                    .foregroundColor(.green)
-                            }
-                        }
                     }
                 }
                 
                 Spacer()
                 
-                // 展开/收起按钮 - 使用本地状态
-                Button(action: {
-                    // 使用本地动画，不影响外部
-                    withAnimation(.easeInOut(duration: 0.35)) {
-                        // 同步本地状态
-                        isExpanded.toggle()
-                        // 调用外部回调
-                        onExpand()
+                // 已完成事项右侧显示完成用时
+                if task.isCompleted, let _ = task.completedTime, let duration = task.duration {
+                    let hours = Int(duration) / 3600
+                    let minutes = (Int(duration) % 3600) / 60
+                    let seconds = Int(duration) % 60
+                    
+                    if hours > 0 {
+                        Text("耗时\(hours)时\(minutes)分")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else if minutes > 0 {
+                        Text("耗时\(minutes)分")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("耗时\(seconds)秒")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
-                }) {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .frame(width: 24, height: 24)
                 }
-                .buttonStyle(PlainButtonStyle())
             }
             
             // 展开的详细信息 - 使用本地状态

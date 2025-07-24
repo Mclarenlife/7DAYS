@@ -203,6 +203,9 @@ struct TimelineContent: View {
             ScrollViewReader { proxy in
                 GeometryReader { geometry in
                     ScrollView {
+                        // 增加顶部空间高度，将专注事项生成位置下移
+                        Color.clear.frame(height: 160)
+                        
                         LazyVStack(spacing: 0) {
                             ForEach(Array(sessionsForDate.enumerated()), id: \.element.id) { index, session in
                                 VStack(spacing: 0) {
@@ -220,19 +223,21 @@ struct TimelineContent: View {
                             TimelineBottomStats()
                                 .id("bottom_spacer")
                         }
-                        .padding(.top, 160) // 为悬浮组件留出空间
                         .padding(.bottom, 120) // 为底部悬浮按钮留出空间
-                        .frame(minHeight: geometry.size.height) // 使用全屏高度
                     }
+                    .frame(minHeight: geometry.size.height) // 使用全屏高度
                 }
                 .onChange(of: dataManager.focusSessions) { oldSessions, newSessions in
                     // 当专注会话数据发生任何变化时，检查今天的数据
                     let todaySessions = timerService.getSessionsForDate(selectedDate)
                     if todaySessions.count > lastSessionCount {
                         lastSessionCount = todaySessions.count
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            withAnimation(.easeInOut(duration: 0.5)) {
-                                proxy.scrollTo("bottom_spacer", anchor: .bottom)
+                        // 只有当添加了新项目时，才滚动到底部
+                        if let lastSession = todaySessions.last {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                withAnimation(.easeInOut(duration: 0.5)) {
+                                    proxy.scrollTo(lastSession.id, anchor: .bottom)
+                                }
                             }
                         }
                     }
@@ -253,30 +258,34 @@ struct TimelineContent: View {
 struct EmptyTimelineView: View {
     var body: some View {
         GeometryReader { geometry in
-            VStack(spacing: 20) {
-                Image(systemName: "clock.badge.questionmark")
-                    .font(.system(size: 60))
-                    .foregroundColor(.gray)
+            VStack(spacing: 0) {
+                // 增加顶部空间高度，将内容位置下移
+                Color.clear.frame(height: 160)
                 
-                VStack(spacing: 8) {
-                    Text("暂无专注记录")
-                        .font(.headline)
-                        .foregroundColor(.primary)
+                VStack(spacing: 20) {
+                    Image(systemName: "clock.badge.questionmark")
+                        .font(.system(size: 60))
+                        .foregroundColor(.gray)
                     
-                    Text("开始一个专注时间来记录你的效率时光")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
+                    VStack(spacing: 8) {
+                        Text("暂无专注记录")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Text("开始一个专注时间来记录你的效率时光")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
                 }
+                .frame(maxWidth: .infinity)
+                .position(
+                    x: geometry.size.width / 2,
+                    y: geometry.size.height / 2 - 50 // 稍微上移，视觉上更平衡
+                )
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .position(
-                x: geometry.size.width / 2,
-                y: geometry.size.height / 2 // 居中显示，悬浮组件不影响定位
-            )
+            .padding(.bottom, 120) // 为底部悬浮按钮留出空间
         }
-        .padding(.top, 160) // 为悬浮组件留出空间
-        .padding(.bottom, 120) // 为底部悬浮按钮留出空间
     }
 }
 
