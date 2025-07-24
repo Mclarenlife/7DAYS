@@ -70,7 +70,14 @@ class PlanningViewModel: ObservableObject {
                 // 兼容旧数据
                 return Calendar.current.isDate(date, inSameDayAs: task.createdDate)
             }
-        }.sorted(by: { $0.createdDate < $1.createdDate })
+        }.sorted { task1, task2 in
+            // 首先按优先级排序
+            if task1.priority.sortValue != task2.priority.sortValue {
+                return task1.priority.sortValue < task2.priority.sortValue
+            }
+            // 优先级相同时按创建时间排序
+            return task1.createdDate < task2.createdDate
+        }
     }
     
     func completedTasksFor(date: Date, type: TaskType, cycle: TaskCycle) -> [Task] {

@@ -45,6 +45,34 @@ struct Task: Identifiable, Codable {
                 return .red
             }
         }
+        
+        // 获取优先级前缀
+        var prefix: String {
+            switch self {
+            case .low:
+                return ""
+            case .medium:
+                return "!"
+            case .high:
+                return "!!"
+            case .urgent:
+                return "!!!"
+            }
+        }
+        
+        // 获取排序值，用于优先级排序
+        var sortValue: Int {
+            switch self {
+            case .urgent:
+                return 0 // 紧急排最前
+            case .high:
+                return 1 // 高优先级次之
+            case .medium:
+                return 2 // 中优先级再次之
+            case .low:
+                return 3 // 低优先级排最后
+            }
+        }
     }
     
     init(title: String, content: String = "", tags: [String] = [], dueDate: Date? = nil, priority: TaskPriority = .medium, type: TaskType = .plan, cycle: TaskCycle = .day, dateRange: TaskDateRange? = nil, atItems: [String] = [], images: [String] = [], createdDate: Date = Date()) {

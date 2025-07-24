@@ -33,11 +33,22 @@ struct TodoItemCell: View {
                 
                 // 任务标题和信息
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(task.title)
-                        .font(.headline)
-                        .fontWeight(.medium)
-                        .strikethrough(task.isCompleted)
-                        .foregroundColor(task.isCompleted ? .secondary : .primary)
+                    HStack(alignment: .center, spacing: 4) {
+                        // 优先级前缀（叹号）
+                        if !task.priority.prefix.isEmpty {
+                            Text(task.priority.prefix)
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundColor(.orange)
+                        }
+                        
+                        // 任务标题
+                        Text(task.title)
+                            .font(.headline)
+                            .fontWeight(.medium)
+                            .strikethrough(task.isCompleted)
+                            .foregroundColor(task.isCompleted ? .secondary : .primary)
+                    }
                     
                     // 任务标签和时间信息
                     HStack {

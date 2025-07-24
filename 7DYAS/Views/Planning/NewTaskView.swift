@@ -13,7 +13,7 @@ struct NewTaskView: View {
     
     @State private var title = ""
     @State private var content = ""
-    @State private var selectedPriority: Task.TaskPriority = .medium
+    @State private var selectedPriority: Task.TaskPriority = .low
     @State private var selectedTags: [String] = []
     @State private var dueDate: Date?
     @State private var hasDueDate = false
