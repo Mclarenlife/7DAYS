@@ -6,15 +6,28 @@ struct TodoItemCell: View {
     let onExpand: () -> Void
     let onCheck: () -> Void
     
+    // 添加本地状态，用于控制展开/收起动画
+    @State private var isExpanded: Bool
+    
+    // 添加初始化方法，同步外部和内部状态
+    init(task: Task, expanded: Bool, onExpand: @escaping () -> Void, onCheck: @escaping () -> Void) {
+        self.task = task
+        self.expanded = expanded
+        self.onExpand = onExpand
+        self.onCheck = onCheck
+        // 初始化本地状态
+        self._isExpanded = State(initialValue: expanded)
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // 主要内容行
             HStack(spacing: 12) {
-                // 完成按钮
+                // 完成按钮 (独立)
                 Button(action: onCheck) {
                     Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
                         .font(.title2)
-                        .foregroundColor(task.isCompleted ? .green : .gray)
+                        .foregroundColor(task.isCompleted ? .green : (task.isDeferred ? .red : .gray))
                 }
                 .buttonStyle(PlainButtonStyle())
                 
@@ -38,24 +51,35 @@ struct TodoItemCell: View {
                                 .clipShape(Capsule())
                         }
                         
-                        if task.isCompleted, let completedTime = task.completedTime, let created = task.createdDate as Date? {
-                            let duration = Int(completedTime.timeIntervalSince(created))
-                            Text("耗时\(duration/60)分\(duration%60)秒")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                        if task.isCompleted, let _ = task.completedTime {
+                            if let _ = task.createdDate as Date?, let duration = task.duration {
+                                let minutes = Int(duration) / 60
+                                let seconds = Int(duration) % 60
+                                Text("耗时\(minutes)分\(seconds)秒")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text("已完成")
+                                    .font(.caption2)
+                                    .foregroundColor(.green)
+                            }
                         }
                     }
                 }
                 
                 Spacer()
                 
-                // 展开/收起按钮
+                // 展开/收起按钮 - 使用本地状态
                 Button(action: {
+                    // 使用本地动画，不影响外部
                     withAnimation(.easeInOut(duration: 0.35)) {
+                        // 同步本地状态
+                        isExpanded.toggle()
+                        // 调用外部回调
                         onExpand()
                     }
                 }) {
-                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .frame(width: 24, height: 24)
@@ -63,8 +87,8 @@ struct TodoItemCell: View {
                 .buttonStyle(PlainButtonStyle())
             }
             
-            // 展开的详细信息
-            if expanded {
+            // 展开的详细信息 - 使用本地状态
+            if isExpanded {
                 VStack(alignment: .leading, spacing: 8) {
                     if !task.content.isEmpty {
                         Text(task.content)
@@ -102,9 +126,15 @@ struct TodoItemCell: View {
                         .font(.caption2)
                         .foregroundColor(.secondary)
                     
+                    if task.isCompleted, let completedTime = task.completedTime {
+                        Text("完成时间：\(completedTime, formatter: dateFormatter)")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                    }
+                    
                     Text("创建时间：\(task.createdDate, formatter: dateFormatter)")
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(task.isDeferred ? .red : .secondary)
                 }
                 .padding(.leading, 32)
                 .transition(.asymmetric(
@@ -119,8 +149,20 @@ struct TodoItemCell: View {
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         .contentShape(Rectangle())
         .onTapGesture {
+            // 使用本地动画，不影响外部
             withAnimation(.easeInOut(duration: 0.35)) {
+                // 同步本地状态
+                isExpanded.toggle()
+                // 调用外部回调
                 onExpand()
+            }
+        }
+        // 监听外部状态变化，同步到本地状态
+        .onChange(of: expanded) { oldValue, newValue in
+            if isExpanded != newValue {
+                withAnimation(.easeInOut(duration: 0.35)) {
+                    isExpanded = newValue
+                }
             }
         }
     }

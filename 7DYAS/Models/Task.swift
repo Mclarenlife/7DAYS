@@ -25,6 +25,7 @@ struct Task: Identifiable, Codable {
     var completedTime: Date? // 完成时间
     var duration: TimeInterval? // 完成耗时
     var isDeferred: Bool // 是否延期
+    var originalTaskId: UUID? // 原始任务ID，用于防止重复顺延
     
     enum TaskPriority: String, CaseIterable, Codable {
         case low = "低"
@@ -62,6 +63,7 @@ struct Task: Identifiable, Codable {
         self.completedTime = nil
         self.duration = nil
         self.isDeferred = false
+        self.originalTaskId = nil
     }
 }
 

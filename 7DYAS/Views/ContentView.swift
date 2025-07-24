@@ -27,6 +27,7 @@ struct ContentView: View {
     @State private var planningViewType: PlanningView.PlanningViewType = .day
     @State private var isExpandedDayView = true // 日视图展开状态 - 默认展开
     @State private var selectedDaySubView: DaySubViewType = .planning // 日视图子功能选择
+    @StateObject private var planningViewModel = PlanningViewModel() // 添加PlanningViewModel实例
     
     enum MainTab: Int, CaseIterable {
         case timeline = 0
@@ -71,33 +72,51 @@ struct ContentView: View {
     }
     
     var body: some View {
-        ZStack {
-            // 主内容区域 - 全屏显示
-            ScrollViewReader { proxy in
-                TabView(selection: $selectedTab) {
-                    TimelineView(
-                        selectedDate: $timelineSelectedDate
-                    )
-                    .tag(MainTab.timeline)
-                    
+        ZStack(alignment: .top) {
+            TabView(selection: $selectedTab) {
+                // 计划视图
+                ZStack(alignment: .top) {
                     PlanningView(
                         selectedDate: $planningSelectedDate,
                         selectedViewType: $planningViewType,
                         selectedDaySubView: $selectedDaySubView
                     )
-                        .tag(MainTab.planning)
+                    .environmentObject(dataManager)
                     
-                    CheckInView()
-                        .tag(MainTab.checkin)
-                    
-                    AnalyticsView()
-                        .tag(MainTab.analytics)
-                    
-                    TemporaryView()
-                        .tag(MainTab.temporary)
+                    // 悬浮日期栏
+                    PlanningFloatingDateBar(
+                        selectedDate: $planningSelectedDate,
+                        selectedViewType: $planningViewType,
+                        showingDatePicker: $showingPlanningDatePicker,
+                        isExpanded: $isExpandedDayView,
+                        selectedSubView: $selectedDaySubView
+                    )
+                    .environmentObject(planningViewModel) // 传递PlanningViewModel
+                    .padding(.top, 96) // 从8增加到28，下移20pt
+                    .opacity(isExpandedDayView ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.3), value: isExpandedDayView)
+                    .zIndex(1)
                 }
-                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                .tabItem {
+                    Label("计划", systemImage: "list.bullet")
+                }
+                .tag(MainTab.planning)
+                
+                TimelineView(
+                    selectedDate: $timelineSelectedDate
+                )
+                .tag(MainTab.timeline)
+                
+                CheckInView()
+                    .tag(MainTab.checkin)
+                
+                AnalyticsView()
+                    .tag(MainTab.analytics)
+                
+                TemporaryView()
+                    .tag(MainTab.temporary)
             }
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
             
             // 悬浮顶部标签栏
             VStack {
@@ -116,24 +135,6 @@ struct ContentView: View {
                     TimelineFloatingDateBar(
                         selectedDate: $timelineSelectedDate,
                         showingDatePicker: $showingTimelineDatePicker
-                    )
-                }
-                
-                Spacer()
-            }
-            
-            // 计划视图的悬浮日期栏 - 使用相同的模糊动画效果
-            VStack {
-                Spacer()
-                    .frame(height: 160) // 减少距离，让日期栏上移
-                
-                BlurAnimationWrapper(isVisible: selectedTab == .planning) {
-                    PlanningFloatingDateBar(
-                        selectedDate: $planningSelectedDate,
-                        selectedViewType: $planningViewType,
-                        showingDatePicker: $showingPlanningDatePicker,
-                        isExpanded: $isExpandedDayView,
-                        selectedSubView: $selectedDaySubView
                     )
                 }
                 
@@ -539,6 +540,8 @@ struct PlanningFloatingDateBar: View {
     @Binding var showingDatePicker: Bool
     @Binding var isExpanded: Bool
     @Binding var selectedSubView: ContentView.DaySubViewType
+    @EnvironmentObject var viewModel: PlanningViewModel
+    @State private var showingDeferAlert = false
     
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
@@ -585,6 +588,24 @@ struct PlanningFloatingDateBar: View {
                 }
                 
                 Spacer()
+                
+                // 顺延按钮
+                if selectedViewType == .day && Calendar.current.isDateInToday(selectedDate) {
+                    Button(action: { showingDeferAlert = true }) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.subheadline)
+                            .foregroundColor(.blue)
+                    }
+                    .padding(.horizontal, 8)
+                    .alert("顺延未完成任务", isPresented: $showingDeferAlert) {
+                        Button("取消", role: .cancel) { }
+                        Button("确定") {
+                            viewModel.deferUncompletedTasks()
+                        }
+                    } message: {
+                        Text("将之前所有未完成的任务顺延到今天？")
+                    }
+                }
                 
                 // 视图类型选择器 - 改为下拉菜单
                 Menu {

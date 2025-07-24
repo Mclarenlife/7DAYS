@@ -32,7 +32,11 @@ class PlanningViewModel: ObservableObject {
     
     func toggleTaskCompletion(_ task: Task) {
         dataManager.toggleTaskCompletion(task)
-        reloadTasks()
+        // 强制刷新任务列表，确保视图更新
+        DispatchQueue.main.async {
+            self.reloadTasks()
+            // 移除自动展开已完成列表的逻辑，由视图层处理
+        }
     }
     
     func toggleExpand(_ task: Task) {
@@ -86,6 +90,12 @@ class PlanningViewModel: ObservableObject {
     
     func addTag(_ tag: Tag) {
         dataManager.addTag(tag)
+    }
+    
+    // 手动触发未完成任务顺延
+    func deferUncompletedTasks() {
+        dataManager.deferUncompletedTasksToToday()
+        reloadTasks()
     }
     
     // 延期逻辑、每日循环等可在此扩展

@@ -38,8 +38,23 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {
-        // Called when the scene has moved from an inactive state to an active state.
-        // Use this method to restart any tasks that were paused (or not yet started) when the scene was inactive.
+        // 当应用程序变为活动状态时调用
+        // 例如，当应用程序从后台恢复或首次启动时
+        
+        // 检查今天是否已经顺延过任务
+        let defaults = UserDefaults.standard
+        let today = Calendar.current.startOfDay(for: Date())
+        let todayString = ISO8601DateFormatter().string(from: today)
+        let lastDeferDate = defaults.string(forKey: "LastTaskDeferDate")
+        
+        // 如果今天还没有顺延过任务，则执行顺延
+        if lastDeferDate != todayString {
+            // 将前一天未完成的任务顺延到今天
+            DataManager.shared.deferUncompletedTasksToToday()
+            
+            // 记录今天已经顺延过任务
+            defaults.set(todayString, forKey: "LastTaskDeferDate")
+        }
     }
 
     func sceneWillResignActive(_ scene: UIScene) {

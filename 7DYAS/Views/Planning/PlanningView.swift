@@ -67,6 +67,7 @@ struct PlanningView: View {
         .onAppear {
             viewModel.reloadTasks()
         }
+        .environmentObject(viewModel) // 将viewModel作为环境对象传递给子视图
     }
 }
 

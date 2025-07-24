@@ -144,7 +144,62 @@ class DataManager: ObservableObject {
     func toggleTaskCompletion(_ task: Task) {
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             tasks[index].isCompleted.toggle()
+            
+            // 如果任务被标记为完成，记录完成时间
+            if tasks[index].isCompleted {
+                tasks[index].completedTime = Date()
+                
+                // 计算任务完成耗时
+                if let created = tasks[index].createdDate as Date? {
+                    tasks[index].duration = Date().timeIntervalSince(created)
+                }
+            } else {
+                // 如果取消完成，清除完成时间和耗时
+                tasks[index].completedTime = nil
+                tasks[index].duration = nil
+            }
+            
             saveTasks()
+        }
+    }
+    
+    /// 将前一天未完成的任务顺延到今天
+    func deferUncompletedTasksToToday() {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        
+        // 获取当天之前的所有未完成任务
+        let pastTasks = tasks.filter { task in
+            // 只考虑日周期的计划类型任务
+            guard task.type == .plan && task.cycle == .day else { return false }
+            // 只考虑当天之前创建的任务
+            guard calendar.compare(calendar.startOfDay(for: task.createdDate), to: today, toGranularity: .day) == .orderedAscending else { return false }
+            // 只考虑未完成的任务
+            return !task.isCompleted
+        }
+        
+        // 收集已经顺延过的原始任务ID
+        let existingOriginalIds = Set(tasks.compactMap { $0.originalTaskId })
+        let existingIds = Set(tasks.map { $0.id })
+        
+        // 为每个未完成任务创建一个新的副本到今天
+        for task in pastTasks {
+            // 如果任务已经有原始ID，检查是否已经顺延过
+            let originalId = task.originalTaskId ?? task.id
+            
+            // 如果原始任务ID已经被顺延过，或者任务本身就是今天的任务，则跳过
+            if existingOriginalIds.contains(originalId) || existingIds.contains(originalId) {
+                continue
+            }
+            
+            var newTask = task
+            newTask.id = UUID() // 新的ID
+            newTask.createdDate = today // 设置为今天
+            newTask.isDeferred = true // 标记为顺延任务
+            newTask.originalTaskId = originalId // 记录原始任务ID
+            
+            // 添加新任务
+            addTask(newTask)
         }
     }
     
