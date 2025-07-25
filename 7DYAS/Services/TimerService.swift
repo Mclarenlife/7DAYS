@@ -7,8 +7,12 @@
 
 import Foundation
 import Combine
+import ActivityKit
 
 class TimerService: ObservableObject {
+    // 添加单例实现
+    static let shared = TimerService()
+    
     @Published var currentSession: FocusSession?
     @Published var sessionState: FocusSessionState = .idle
     @Published var elapsedTime: TimeInterval = 0
@@ -19,6 +23,9 @@ class TimerService: ObservableObject {
     private var pausedTime: TimeInterval = 0
     
     private let dataManager = DataManager.shared
+    
+    // 私有初始化方法，确保只能通过shared访问
+    private init() {}
     
     // MARK: - Timer Control
     func startSession(title: String, tags: [String] = [], relatedTask: UUID? = nil) {
@@ -65,6 +72,18 @@ class TimerService: ObservableObject {
         pausedTime = 0
         
         startTimer()
+        
+        // 启动灵动岛 LiveActivity
+        if ActivityAuthorizationInfo().areActivitiesEnabled {
+            Task { @MainActor in
+                if let session = currentSession {
+                    await LiveActivityManager.shared.startLiveActivity(session: session)
+                }
+            }
+        }
+        
+        // 更新App Group中的状态，供小组件读取
+        updateSharedUserDefaults()
     }
     
     func pauseSession() {
@@ -77,6 +96,12 @@ class TimerService: ObservableObject {
         if let start = startTime {
             pausedTime += Date().timeIntervalSince(start)
         }
+        
+        // 更新灵动岛状态
+        updateLiveActivity()
+        
+        // 更新App Group中的状态
+        updateSharedUserDefaults()
     }
     
     func resumeSession() {
@@ -87,6 +112,12 @@ class TimerService: ObservableObject {
         startTime = Date()
         
         startTimer()
+        
+        // 更新灵动岛状态
+        updateLiveActivity()
+        
+        // 更新App Group中的状态
+        updateSharedUserDefaults()
     }
     
     func stopSession(notes: String = "") {
@@ -114,15 +145,32 @@ class TimerService: ObservableObject {
             dataManager.addFocusSession(session)
         }
         
+        // 结束灵动岛显示
+        Task { @MainActor in
+            await LiveActivityManager.shared.endLiveActivity()
+        }
+        
         // 重置状态
         resetSession()
+        
+        // 更新App Group中的状态
+        updateSharedUserDefaults()
     }
     
     func cancelSession() {
         sessionState = .idle
         isRunning = false
         stopTimer()
+        
+        // 结束灵动岛显示
+        Task { @MainActor in
+            await LiveActivityManager.shared.endLiveActivity()
+        }
+        
         resetSession()
+        
+        // 更新App Group中的状态
+        updateSharedUserDefaults()
     }
     
     private func startTimer() {
@@ -165,6 +213,12 @@ class TimerService: ObservableObject {
         
         // 确保时间不为负数
         elapsedTime = max(0, elapsedTime)
+        
+        // 每秒更新灵动岛显示（每10秒更新一次，避免过于频繁）
+        if Int(elapsedTime) % 10 == 0 {
+            updateLiveActivity()
+            updateSharedUserDefaults()
+        }
     }
     
     private func resetSession() {
@@ -172,6 +226,36 @@ class TimerService: ObservableObject {
         elapsedTime = 0
         startTime = nil
         pausedTime = 0
+    }
+    
+    // 更新App Group中的状态，供小组件读取
+    private func updateSharedUserDefaults() {
+        let userDefaults = UserDefaults(suiteName: "group.com.mclarenlife.7DYAS")
+        userDefaults?.set(isRunning, forKey: "focus_timer_running")
+        userDefaults?.set(currentSession?.title ?? "专注", forKey: "focus_session_title")
+        userDefaults?.set(elapsedTime, forKey: "focus_elapsed_time")
+        userDefaults?.synchronize()
+    }
+    
+    // 更新灵动岛显示
+    private func updateLiveActivity() {
+        // 计算剩余时间（如果有设定持续时间的话）
+        var remainingTime: TimeInterval? = nil
+        if let session = currentSession, session.duration > 0 {
+            remainingTime = max(0, session.duration - elapsedTime)
+            if remainingTime == 0 {
+                remainingTime = nil
+            }
+        }
+        
+        // 更新灵动岛状态
+        Task { @MainActor in
+            await LiveActivityManager.shared.updateLiveActivity(
+                elapsedTime: elapsedTime,
+                state: sessionState,
+                remainingTime: remainingTime
+            )
+        }
     }
     
     // MARK: - Formatting Helpers
@@ -240,6 +324,12 @@ class TimerService: ObservableObject {
             
             // 重新计算已过时间
             recalculateElapsedTime()
+            
+            // 更新灵动岛显示
+            updateLiveActivity()
+            
+            // 更新App Group中的状态
+            updateSharedUserDefaults()
         }
     }
     

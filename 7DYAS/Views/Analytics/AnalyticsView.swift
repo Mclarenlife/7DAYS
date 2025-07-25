@@ -420,5 +420,5 @@ struct PlaceholderSection: View {
 #Preview {
     AnalyticsView()
         .environmentObject(DataManager.shared)
-        .environmentObject(TimerService())
+        .environmentObject(TimerService.shared)
 }

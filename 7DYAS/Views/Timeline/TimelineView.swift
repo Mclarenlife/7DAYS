@@ -227,7 +227,7 @@ struct TimelineContent: View {
                     }
                     .frame(minHeight: geometry.size.height) // 使用全屏高度
                 }
-                .onChange(of: dataManager.focusSessions) { oldSessions, newSessions in
+                .onChange(of: dataManager.focusSessions) { newSessions in
                     // 当专注会话数据发生任何变化时，检查今天的数据
                     let todaySessions = timerService.getSessionsForDate(selectedDate)
                     if todaySessions.count > lastSessionCount {
@@ -242,7 +242,7 @@ struct TimelineContent: View {
                         }
                     }
                 }
-                .onChange(of: selectedDate) { oldDate, newDate in
+                .onChange(of: selectedDate) { newDate in
                     // 当切换日期时，只更新计数，不自动滚动
                     lastSessionCount = sessionsForDate.count
                 }
@@ -1185,5 +1185,5 @@ struct GradientDivider: View {
 #Preview {
     TimelineView(selectedDate: .constant(Date()))
         .environmentObject(DataManager.shared)
-        .environmentObject(TimerService())
+        .environmentObject(TimerService.shared)
 }

@@ -217,7 +217,7 @@ struct DayPlanningView: View {
                     // 添加对任务完成状态变化的动画
                     .animation(.easeInOut(duration: 0.35), value: refreshID)
                 }
-                .onChange(of: viewModel.tasks.count) { _, _ in
+                .onChange(of: viewModel.tasks.count) { newCount in
                     // 检查是否有新添加的任务
                     if let lastAddedTaskID = viewModel.lastAddedTaskID {
                         // 延迟一点执行，确保视图已更新

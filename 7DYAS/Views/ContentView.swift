@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var dataManager = DataManager.shared
-    @StateObject private var timerService = TimerService()
+    @StateObject private var timerService = TimerService.shared
     @State private var selectedTab: MainTab = .timeline
     @State private var showingNewIdea = false
     @State private var showingFocusTimer = false
@@ -234,13 +234,13 @@ struct ContentView: View {
             SettingsView()
                 .environmentObject(dataManager)
         }
-        .onChange(of: timerService.sessionState) { oldValue, newValue in
+        .onChange(of: timerService.sessionState) { newValue in
             // 当计时器状态变为空闲时，隐藏底部计时条
             if newValue == .idle {
                 showingBottomTimerBar = false
             }
         }
-        .onChange(of: selectedTab) { oldValue, newValue in
+        .onChange(of: selectedTab) { newValue in
             // 切换到计划视图时，确保日期栏显示
             if newValue == .planning {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -340,7 +340,7 @@ struct TopTabBar: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 12) // 增加标签栏底部padding
                 }
-                .onChange(of: selectedTab) { oldValue, newValue in
+                .onChange(of: selectedTab) { newValue in
                     withAnimation(.easeInOut) {
                         proxy.scrollTo(newValue, anchor: .center)
                     }
@@ -603,7 +603,7 @@ struct AnimatedBackground: View {
         .onAppear {
             animationProgress = isFloating ? 1 : 0
         }
-        .onChange(of: isFloating) { oldValue, newValue in
+        .onChange(of: isFloating) { newValue in
             withAnimation(.easeInOut(duration: 0.4)) {
                 animationProgress = newValue ? 1 : 0
             }
@@ -757,7 +757,7 @@ struct PlanningFloatingDateBar: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal, 30) // 左右留边距
         .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 2) // 添加阴影增强悬浮效果
-        .onChange(of: selectedViewType) { oldValue, newValue in
+        .onChange(of: selectedViewType) { newValue in
             // 监听视图类型变化，自动展开/收起
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                 isExpanded = (newValue == .day)
@@ -1056,7 +1056,7 @@ struct BottomFocusSheet: View {
                 }
             }
         }
-        .onChange(of: isPresented) { oldValue, newValue in
+        .onChange(of: isPresented) { newValue in
             if newValue {
                 showSheet()
                 // 点击专注按钮时，如果当前没有会话，关闭自定义开始时间
@@ -2047,7 +2047,7 @@ struct TimerSettingsView: View {
                 
                 Section("计时开始时间") {
                     Toggle("自定义开始时间", isOn: $enableCustomStartTime)
-                        .onChange(of: enableCustomStartTime) { oldValue, newValue in
+                        .onChange(of: enableCustomStartTime) { newValue in
                             if newValue {
                                 selectedStartTime = Date()
                             }
@@ -2073,7 +2073,7 @@ struct TimerSettingsView: View {
                             )
                             .datePickerStyle(.wheel)
                             .labelsHidden()
-                            .onChange(of: selectedStartTime) { oldValue, newValue in
+                            .onChange(of: selectedStartTime) { newValue in
                                 // 实时保存时间设置
                                 UserDefaults.standard.set(newValue, forKey: "customTimerStartTime")
                                 

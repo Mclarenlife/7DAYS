@@ -122,7 +122,7 @@ struct SettingsView: View {
         .onAppear {
             applyColorScheme()
         }
-        .onChange(of: appColorScheme) { _, _ in
+        .onChange(of: appColorScheme) { newValue in
             applyColorScheme()
         }
     }
@@ -1112,14 +1112,14 @@ struct NordicTagGroup: View {
                 }
             }
             // 监听外部状态变化和标签数量变化，同步到本地状态
-            .onChange(of: isExpanded) { oldValue, newValue in
+            .onChange(of: isExpanded) { newValue in
                 if localExpanded != newValue && !tags.isEmpty {
                     withAnimation(.easeInOut(duration: 0.35)) {
                         localExpanded = newValue
                     }
                 }
             }
-            .onChange(of: tags.count) { _, newCount in
+            .onChange(of: tags.count) { newCount in
                 // 如果标签夹变空，自动折叠
                 if newCount == 0 && localExpanded {
                     withAnimation(.easeInOut(duration: 0.35)) {

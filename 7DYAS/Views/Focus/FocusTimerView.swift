@@ -380,6 +380,6 @@ struct TaskPickerView: View {
 
 #Preview {
     FocusTimerView()
-        .environmentObject(TimerService())
+        .environmentObject(TimerService.shared)
         .environmentObject(DataManager.shared)
 }

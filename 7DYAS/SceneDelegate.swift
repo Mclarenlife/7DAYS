@@ -12,7 +12,6 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     var window: UIWindow?
 
-
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         // Use this method to optionally configure and attach the UIWindow `window` to the provided UIWindowScene `scene`.
         // If using a storyboard, the `window` property will automatically be initialized and attached to the scene.
@@ -27,6 +26,50 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             window.rootViewController = UIHostingController(rootView: contentView)
             self.window = window
             window.makeKeyAndVisible()
+        }
+        
+        // 处理启动时的URL
+        if let urlContext = connectionOptions.urlContexts.first {
+            handleIncomingURL(urlContext.url)
+        }
+    }
+    
+    // 处理应用在前台时收到的URL
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        if let urlContext = URLContexts.first {
+            handleIncomingURL(urlContext.url)
+        }
+    }
+
+    // URL处理函数
+    private func handleIncomingURL(_ url: URL) {
+        guard url.scheme == "7dyas" else { return }
+        
+        // 根据URL路径分发不同的操作
+        if url.host == "focus" && url.path == "/toggle" {
+            // 切换专注状态
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: true)
+            let shouldRun = components?.queryItems?.first(where: { $0.name == "running" })?.value == "true"
+            
+            // 使用TimerService单例并执行操作
+            DispatchQueue.main.async {
+                let timerService = TimerService.shared
+                
+                if shouldRun {
+                    // 如果当前没有会话，创建默认会话
+                    if timerService.sessionState == .idle {
+                        timerService.startSession(title: "快速专注", tags: ["小组件启动"])
+                    } else if timerService.sessionState == .paused {
+                        // 如果已暂停，则恢复
+                        timerService.resumeSession()
+                    }
+                } else {
+                    // 如果正在运行，则暂停
+                    if timerService.sessionState == .running {
+                        timerService.pauseSession()
+                    }
+                }
+            }
         }
     }
 
@@ -71,8 +114,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Called as the scene transitions from the foreground to the background.
         // Use this method to save data, release shared resources, and store enough scene-specific state information
         // to restore the scene back to its current state.
+        
+        // TimerService已在内部实现状态更新，不再需要在这里更新
     }
-
-
 }
 

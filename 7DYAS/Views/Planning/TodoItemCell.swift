@@ -182,7 +182,7 @@ struct TodoItemCell: View {
             }
         }
         // 监听外部状态变化，同步到本地状态
-        .onChange(of: expanded) { oldValue, newValue in
+        .onChange(of: expanded) { newValue in
             if isExpanded != newValue {
                 withAnimation(.easeInOut(duration: 0.35)) {
                     isExpanded = newValue
