@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import ActivityKit
+import UIKit
 
 class TimerService: ObservableObject {
     // 添加单例实现
@@ -18,9 +19,14 @@ class TimerService: ObservableObject {
     @Published var elapsedTime: TimeInterval = 0
     @Published var isRunning: Bool = false
     
-    private var timer: Timer?
+    var timer: Timer?
+    private var displayLink: CADisplayLink?
     private var startTime: Date?
     private var pausedTime: TimeInterval = 0
+    private var lastUpdateTime: Date = Date()
+    
+    // 后台计时相关
+    private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
     
     private let dataManager = DataManager.shared
     
@@ -72,6 +78,9 @@ class TimerService: ObservableObject {
         pausedTime = 0
         
         startTimer()
+        
+        // 启动后台任务
+        startBackgroundTask()
         
         // 启动灵动岛 LiveActivity
         if ActivityAuthorizationInfo().areActivitiesEnabled {
@@ -150,6 +159,9 @@ class TimerService: ObservableObject {
             await LiveActivityManager.shared.endLiveActivity()
         }
         
+        // 结束后台任务
+        endBackgroundTask()
+        
         // 重置状态
         resetSession()
         
@@ -167,21 +179,65 @@ class TimerService: ObservableObject {
             await LiveActivityManager.shared.endLiveActivity()
         }
         
+        // 结束后台任务
+        endBackgroundTask()
+        
         resetSession()
         
         // 更新App Group中的状态
         updateSharedUserDefaults()
     }
     
-    private func startTimer() {
+    func startTimer() {
+        // 停止之前的计时器
+        stopTimer()
+        
+        // 使用 CADisplayLink 获得更精确的计时
+        displayLink = CADisplayLink(target: self, selector: #selector(displayLinkUpdate))
+        displayLink?.preferredFramesPerSecond = 1 // 每秒更新一次
+        displayLink?.add(to: .main, forMode: .common)
+        
+        // 同时保留 Timer 作为备用
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.updateElapsedTime()
         }
+        RunLoop.current.add(timer!, forMode: .common)
     }
     
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+        
+        displayLink?.invalidate()
+        displayLink = nil
+    }
+    
+    @objc private func displayLinkUpdate() {
+        let now = Date()
+        // 确保至少间隔1秒才更新
+        if now.timeIntervalSince(lastUpdateTime) >= 1.0 {
+            lastUpdateTime = now
+            updateElapsedTime()
+        }
+    }
+    
+    // 启动后台任务
+    private func startBackgroundTask() {
+        // 结束之前的后台任务
+        endBackgroundTask()
+        
+        // 开始新的后台任务
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "FocusTimer") { [weak self] in
+            self?.endBackgroundTask()
+        }
+    }
+    
+    // 结束后台任务
+    private func endBackgroundTask() {
+        if backgroundTaskID != .invalid {
+            UIApplication.shared.endBackgroundTask(backgroundTaskID)
+            backgroundTaskID = .invalid
+        }
     }
     
     private func updateElapsedTime() {
@@ -214,10 +270,13 @@ class TimerService: ObservableObject {
         // 确保时间不为负数
         elapsedTime = max(0, elapsedTime)
         
-        // 每秒更新灵动岛显示（每10秒更新一次，避免过于频繁）
-        if Int(elapsedTime) % 10 == 0 {
-            updateLiveActivity()
-            updateSharedUserDefaults()
+        // 每秒更新灵动岛显示和共享数据
+        updateLiveActivity()
+        updateSharedUserDefaults()
+        
+        // 如果应用在后台，延长后台任务时间
+        if UIApplication.shared.applicationState == .background {
+            startBackgroundTask()
         }
     }
     
@@ -238,7 +297,7 @@ class TimerService: ObservableObject {
     }
     
     // 更新灵动岛显示
-    private func updateLiveActivity() {
+    func updateLiveActivity() {
         // 计算剩余时间（如果有设定持续时间的话）
         var remainingTime: TimeInterval? = nil
         if let session = currentSession, session.duration > 0 {

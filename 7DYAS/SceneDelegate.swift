@@ -98,6 +98,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             // 记录今天已经顺延过任务
             defaults.set(todayString, forKey: "LastTaskDeferDate")
         }
+        
+        // 如果TimerService正在运行，确保计时器正常工作
+        let timerService = TimerService.shared
+        if timerService.isRunning && timerService.timer == nil {
+            timerService.startTimer()
+        }
     }
 
     func sceneWillResignActive(_ scene: UIScene) {
@@ -115,7 +121,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Use this method to save data, release shared resources, and store enough scene-specific state information
         // to restore the scene back to its current state.
         
-        // TimerService已在内部实现状态更新，不再需要在这里更新
+        // 确保TimerService在后台继续运行
+        let timerService = TimerService.shared
+        if timerService.isRunning {
+            // 强制更新一次实时活动，确保状态正确
+            timerService.updateLiveActivity()
+        }
     }
 }
 
